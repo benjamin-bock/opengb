@@ -1,0 +1,15 @@
+*.DS_Store
+*.o
+*.exe
+*.bin
+*.hex
+*.rom
+*.gb
+*.gbc
+*.gba
+*.gbc
+*.gba
+*.gbc
+*.gba
+build/
+.*.md
