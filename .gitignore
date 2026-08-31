@@ -13,3 +13,4 @@
 *.gba
 build/
 .*.md
+pandocs/

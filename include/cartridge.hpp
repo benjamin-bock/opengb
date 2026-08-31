@@ -15,6 +15,7 @@ class Cartridge {
         void load();
         bool nintendoLogo();
         bool headerChecksum();
+        bool isColorMode();
     
     private:
         std::string filepath;

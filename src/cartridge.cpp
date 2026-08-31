@@ -52,3 +52,13 @@ bool Cartridge::headerChecksum() {
     // compare the 8 LSB of checksum with the byte at address 0x014D
     return checksum == this->data[0x014D];
 }
+
+bool Cartridge::isColorMode() {
+    // check if the cartridge supports color mode
+    return this->data[0x0143] & 0x80;
+}
+
+bool Cartridge::isColorOnly() {
+    // check if the cartridge supports color mode only
+    return (this->data[0x0143] & 0xC0) == 0x80;
+}
