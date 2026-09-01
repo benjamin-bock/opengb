@@ -24,13 +24,15 @@ void Cartridge::load() {
 
     std::streamsize size = file.tellg();
 
+    
+    file.seekg(0, std::ios::beg);
+    
+    this->data.resize(static_cast<size_t>(size));
+
     if (this->data.size() < 0x150) {
         throw std::runtime_error("File is too small to be a valid cartridge");
     }
 
-    file.seekg(0, std::ios::beg);
-
-    this->data.resize(static_cast<size_t>(size));
     file.read(reinterpret_cast<char*>(this->data.data()), size);
 
     if (!file) {
@@ -128,7 +130,7 @@ std::string Cartridge::getType() {
     return this->data[0x0147];
 }
 
-uint16_t Cartridge::getROMSize() {
+uint32_t Cartridge::getROMSize() {
     // get the ROM size of the cartridge in bytes
     switch (this->data[0x0148]) {
         case 0x52: return 1.1 * 1024 * 1024;
@@ -138,7 +140,7 @@ uint16_t Cartridge::getROMSize() {
     }
 }
 
-uint16_t Cartridge::getRAMSize() {
+uint32_t Cartridge::getRAMSize() {
     // get the RAM size of the cartridge
     switch (this->data[0x0149]) {
         case 0x00: return 0 * 1024;
@@ -163,5 +165,37 @@ std::string Cartridge::getMaskROMVersion() {
 
 bool Cartridge::globalChecksum() {
     // check if the global checksum is valid
-    return this->data[0x014E] << 8 | this->data[0x014F] == 0x00;
+    return ((this->data[0x014E] << 8) | this->data[0x014F]) == 0x00;
+}
+
+uint8_t Cartridge::read(uint16_t addr) const {
+    // read a byte from the cartridge
+    if (addr >= this->data.size()) {
+        return 0xFF;
+    }
+    if (addr < 0x8000) {
+        return this->data[addr];
+    }
+    else if (addr >= 0xA000 && addr <= 0xBFFF) {
+        return 0xFF; // RAM is not implemented yet
+    }
+    else {
+        return 0xFF; // Unmapped address
+    }
+}
+
+void Cartridge::write(uint16_t addr, uint8_t data) {
+    // write a byte to the cartridge
+    if (addr >= this->data.size()) {
+        return;
+    }
+    if (addr < 0x8000) {
+        return; // ROM is read only
+    }
+    else if (addr >= 0xA000 && addr <= 0xBFFF) {
+        return; // RAM is not implemented yet
+    }
+    else {
+        return; // Unmapped address
+    }
 }

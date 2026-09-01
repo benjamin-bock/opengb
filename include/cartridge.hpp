@@ -23,11 +23,13 @@ class Cartridge {
         std::string getLicenseeCode();
         bool hasSGBSupport();
         std::string getType();
-        uint16_t getROMSize();
-        uint16_t getRAMSize();
+        uint32_t getROMSize();
+        uint32_t getRAMSize();
         std::string getDestinationCode();
         std::string getMaskROMVersion();
         bool globalChecksum();
+        uint8_t read(uint16_t addr) const;
+        void write(uint16_t addr, uint8_t data);
 
     private:
         std::string filepath;
