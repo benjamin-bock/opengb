@@ -121,9 +121,75 @@ void Bus::write(uint16_t addr, uint8_t data) {
 }
 
 uint8_t Bus::readIO(uint16_t addr) const {
-    // TO-DO:
+    if (addr == 0xFF00) {
+        return joypad.read();
+    }
+    else if (addr == 0xFF01 || addr == 0xFF02) {
+        return serial.read(addr);
+    }
+    else if (addr >= 0xFF04 && addr <= 0xFF07) {
+        return timer.read(addr);
+    }
+    else if (addr == 0xFF0F) {
+        return this->interruptFlag;
+    }
+    else if (addr >= 0xFF10 && addr <= 0xFF3F) {
+        return apu.read(addr);
+    }
+    else if (addr == 0xFF46) {
+        return this->dmaRegister;
+    }
+    else if (addr >= 0xFF40 && addr <= 0xFF4B) {
+        return ppu.read(addr);
+    }
+    else {
+        return 0xFF; // Unmapped address
+    }
+    /* Ignore the rest of the IO ports 
+    ⚬	$FF50 (Boot ROM is readonly)   
+    ⚬	$FF4C-$FF4D (KEY0/KEY1 - Vitesse CPU CGB)
+    ⚬	$FF4F (VRAM Bank CGB)
+    ⚬	$FF51-$FF55 (HDMA CGB)
+    ⚬	$FF56 (Infrarouge)
+    ⚬	$FF68-$FF6B (Palettes couleur CGB)
+    ⚬	$FF6C (Priorité des sprites CGB)
+    ⚬	$FF70 (WRAM Bank CGB)
+    because they are only for CGB mode
+    */
 }
 
 void Bus::writeIO(uint16_t addr, uint8_t data) {
-    // TO-DO:
+    if (addr == 0xFF00) {
+        joypad.write(data);
+    }
+    else if (addr == 0xFF01 || addr == 0xFF02) {
+        serial.write(addr, data);
+    }
+    else if (addr >= 0xFF04 && addr <= 0xFF07) {
+        timer.write(addr, data);
+    }
+    else if (addr == 0xFF0F) {
+        this->interruptFlag = data;
+    }
+    else if (addr >= 0xFF10 && addr <= 0xFF3F) {
+        apu.write(addr, data);
+    }
+    else if (addr == 0xFF46) {
+        this->dmaRegister = data;
+        this->dmaTransfer(this->dmaRegister);
+    }
+    else if (addr >= 0xFF40 && addr <= 0xFF4B) {
+        ppu.write(addr, data);
+    }
+    /* Ignore the rest of the IO ports 
+    ⚬	$FF50 (Boot ROM is not emulated, CPU's PC is initilised at 0x0100)   
+    ⚬	$FF4C-$FF4D (KEY0/KEY1 - Vitesse CPU CGB)
+    ⚬	$FF4F (VRAM Bank CGB)
+    ⚬	$FF51-$FF55 (HDMA CGB)
+    ⚬	$FF56 (Infrarouge)
+    ⚬	$FF68-$FF6B (Palettes couleur CGB)
+    ⚬	$FF6C (Priorité des sprites CGB)
+    ⚬	$FF70 (WRAM Bank CGB)
+    because they are only for CGB mode
+    */
 }

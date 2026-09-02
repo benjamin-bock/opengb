@@ -34,9 +34,13 @@ class Bus {
         std::array<uint8_t, WRAM_SIZE> wram1;
         std::array<uint8_t, OAM_SIZE> oam;
         std::array<uint8_t, HRAM_SIZE> hram;
+        uint8_t interruptFlag;
+        uint8_t dmaRegister{0xFF};
 
         uint8_t ie_register; // Interrupt enable register
 
         uint8_t readIO(uint16_t addr) const;
         void writeIO(uint16_t addr, uint8_t data);
+
+        void dmaTransfer(uint8_t source_prefix);
 };
