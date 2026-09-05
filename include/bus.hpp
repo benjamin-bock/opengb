@@ -1,12 +1,7 @@
-#ifndef BUS_HPP
-#define BUS_HPP
+#pragma once
 
-#include <iostream>
-#include <fstream>
-#include <vector>
 #include <cstdint>
 #include <array>
-#include <algorithm>
 
 #include "cartridge.hpp"
 

@@ -1,8 +1,5 @@
-#ifndef CARTRIDGE_HPP
-#define CARTRIDGE_HPP
+#pragma once
 
-#include <iostream>
-#include <fstream>
 #include <vector>
 #include <cstdint>
 #include <string>
@@ -34,4 +31,4 @@ class Cartridge {
     private:
         std::string filepath;
         std::vector<uint8_t> data;
-    };
+};

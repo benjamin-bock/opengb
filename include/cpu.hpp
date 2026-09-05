@@ -1,23 +1,15 @@
-#ifndef CPU_HPP
-#define CPU_HPP
+#pragma once
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <map>
-#include <set>
-#include <queue>
-#include <stack>
-#include <algorithm>
-#include <cmath>
 #include <cstdlib>
+
+#include "bus.hpp"
 
 class CPU {
     public:
-        CPU();
-    
+        CPU(Bus& bus);
     private:
+        Bus& bus;
+
         // 8-bit register
         uint8_t A, F, B, C, D, E, H, L;
 
@@ -33,12 +25,25 @@ class CPU {
         void setDE(uint16_t value);
         void setHL(uint16_t value);
 
+        // 1-bit flag setter
+        void setZ(bool value);
+        void setN(bool value);
+        void setH(bool value);
+        void setC(bool value);
+
+        // 1-bit flag getter
+        bool getZ();
+        bool getN();
+        bool getH();
+        bool getC();
+
         // 16-bit register
         uint16_t SP, PC; // stack pointer, program counter
 
         uint8_t step();
         uint8_t fetchByte();
         uint16_t fetchWord();
+        void writeByte(uint16_t addr, uint8_t byte);
+        void writeWord(uint16_t addr, uint16_t word);
         uint8_t execute(uint8_t opcode);
-}
-
+};

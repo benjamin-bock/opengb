@@ -1,4 +1,4 @@
-#include "cartridge.hpp"
+#include "../include/cartridge.hpp"
 
 static constexpr std::array<uint8_t, 48> NINTENDO_LOGO_REF = {
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
@@ -114,9 +114,9 @@ std::string Cartridge::getLicenseeCode() {
     // get the licensee code of the cartridge
 
     if (this->isOldLicenseeCode()) {
-        return std::string(this->data[0x014B]);
+        return std::string(1, this->data[0x014B]);
     } else {
-        return std::string(this->data[0x0144], this->data[0x0145]);
+        return std::string(1, this->data[0x0144]) + std::to_string(this->data[0x0145]);
     }
 }
 
@@ -127,7 +127,7 @@ bool Cartridge::hasSGBSupport() {
 
 std::string Cartridge::getType() {
     // get the type of the cartridge
-    return this->data[0x0147];
+    return std::string(1, this->data[0x0147]);
 }
 
 uint32_t Cartridge::getROMSize() {
@@ -155,12 +155,12 @@ uint32_t Cartridge::getRAMSize() {
 
 std::string Cartridge::getDestinationCode() {
     // get the destination code of the cartridge
-    return this->data[0x014A];
+    return std::string(1, this->data[0x014A]);
 }
 
 std::string Cartridge::getMaskROMVersion() {
     // get the mask ROM version of the cartridge
-    return this->data[0x014C];
+    return std::string(1, this->data[0x014C]);
 }
 
 bool Cartridge::globalChecksum() {

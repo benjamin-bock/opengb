@@ -1,4 +1,6 @@
-#include "bus.hpp"
+#include "../include/bus.hpp"
+
+#include "../include/cartridge.hpp"
 
 
 Bus::Bus(Cartridge& cart) : cart(cart) {
