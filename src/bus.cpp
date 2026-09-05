@@ -9,7 +9,9 @@ Bus::Bus(Cartridge& cart) : cart(cart) {
     this->wram1.fill(0x00);
     this->oam.fill(0x00);
     this->hram.fill(0x00);
-    this->ie_register = 0x00;
+    this->ieRegister = 0x00;
+    this->dmaRegister = 0xFF;
+    this->interruptFlag = 0x00;
 }
         
 bool Bus::isAddressValid(uint16_t addr) {
@@ -70,7 +72,7 @@ uint8_t Bus::read(uint16_t addr) const {
     }
     // Interrupt enable register
     else if (addr == 0xFFFF) {
-        return this->ie_register;
+        return this->ieRegister;
     }
     else {
         return 0xFF; // Unmapped address
@@ -87,62 +89,71 @@ void Bus::write(uint16_t addr, uint8_t data) {
     }
     // ROM bank 1-n
     else if (addr >= 0x8000 && addr <= 0x9FFF) {
-        return this->vram[addr - 0x8000] = data;
+        this->vram[addr - 0x8000] = data;
+        return;
     }
     // WRAM bank 0
     else if (addr >= 0xC000 && addr <= 0xCFFF) {
-        return this->wram0[addr - 0xC000] = data;
+        this->wram0[addr - 0xC000] = data;
+        return;
     }
     // WRAM bank 1
     else if (addr >= 0xD000 && addr <= 0xDFFF) {
-        return this->wram1[addr - 0xD000] = data;
+        this->wram1[addr - 0xD000] = data;
+        return;
     }
     // Echo RAM
     else if (addr >= 0xE000 && addr <= 0xFDFF) { // Deprecated address range
-        return this->write(addr - 0x2000, data); // Echo RAM
+        this->write(addr - 0x2000, data); // Echo RAM
+        return;
     }
     // OAM
     else if (addr >= 0xFE00 && addr <= 0xFE9F) {
-        return this->oam[addr - 0xFE00] = data;
+        this->oam[addr - 0xFE00] = data;
+        return;
     }
     // IO ports
     else if (addr >= 0xFF00 && addr <= 0xFF7F) {
-        return this->writeIO(addr, data);
+        this->writeIO(addr, data);
+        return;
     }
     // HRAM
     else if (addr >= 0xFF80 && addr <= 0xFFFE) {
-        return this->hram[addr - 0xFF80] = data;
+        this->hram[addr - 0xFF80] = data;
+        return;
     }
     // Interrupt enable register
     else if (addr == 0xFFFF) {
-        return this->ie_register = data;
+        this->ieRegister = data;
+        return;
     }
     else {
-        return; // Unmapped address
+        // Unmapped address
+        return;
     }
 }
 
 uint8_t Bus::readIO(uint16_t addr) const {
     if (addr == 0xFF00) {
-        return joypad.read();
+        return this->joypad.read();
     }
     else if (addr == 0xFF01 || addr == 0xFF02) {
-        return serial.read(addr);
+        return this->serial.read(addr);
     }
     else if (addr >= 0xFF04 && addr <= 0xFF07) {
-        return timer.read(addr);
+        return this->timer.read(addr);
     }
     else if (addr == 0xFF0F) {
         return this->interruptFlag;
     }
     else if (addr >= 0xFF10 && addr <= 0xFF3F) {
-        return apu.read(addr);
+        return this->apu.read(addr);
     }
     else if (addr == 0xFF46) {
         return this->dmaRegister;
     }
     else if (addr >= 0xFF40 && addr <= 0xFF4B) {
-        return ppu.read(addr);
+        return this->ppu.read(addr);
     }
     else {
         return 0xFF; // Unmapped address
@@ -162,26 +173,33 @@ uint8_t Bus::readIO(uint16_t addr) const {
 
 void Bus::writeIO(uint16_t addr, uint8_t data) {
     if (addr == 0xFF00) {
-        joypad.write(data);
+        this->joypad.write(data);
+        return;
     }
     else if (addr == 0xFF01 || addr == 0xFF02) {
-        serial.write(addr, data);
+        this->serial.write(addr, data);
+        return;
     }
     else if (addr >= 0xFF04 && addr <= 0xFF07) {
-        timer.write(addr, data);
+        this->timer.write(addr, data);
+        return;
     }
     else if (addr == 0xFF0F) {
         this->interruptFlag = data;
+        return;
     }
     else if (addr >= 0xFF10 && addr <= 0xFF3F) {
-        apu.write(addr, data);
+        this->apu.write(addr, data);
+        return;
     }
     else if (addr == 0xFF46) {
         this->dmaRegister = data;
         this->dmaTransfer(this->dmaRegister);
+        return;
     }
     else if (addr >= 0xFF40 && addr <= 0xFF4B) {
-        ppu.write(addr, data);
+        this->ppu.write(addr, data);
+        return;
     }
     /* Ignore the rest of the IO ports 
     ⚬	$FF50 (Boot ROM is not emulated, CPU's PC is initilised at 0x0100)   
