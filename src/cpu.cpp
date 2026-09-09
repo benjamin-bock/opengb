@@ -161,14 +161,14 @@ uint8_t CPU::execute(uint8_t opcode) {
             this->setH((this->B & 0x0F) == 0x0F);
             this->B++;
             this->setZ(this->B == 0);
-            this->setN(0);
+            this->setN(false);
             return 4;
 
         case 0x05: // DEC B
             this->setH((this->B & 0x0F) == 0x0F);
             this->B--;
             this->setZ(this->B == 0);
-            this->setN(1);
+            this->setN(true);
             return 4;
 
         case 0x06: // LD B,u8
@@ -181,9 +181,9 @@ uint8_t CPU::execute(uint8_t opcode) {
             if (this->getC()) {
                 this->A |= 0x01; // set A_0 to 1
             }
-            this->setZ(0);
-            this->setH(0);
-            this->setN(0);
+            this->setZ(false);
+            this->setH(false);
+            this->setN(false);
             return 4;
         
         case 0x08: // LD (u16),SP
@@ -196,7 +196,7 @@ uint8_t CPU::execute(uint8_t opcode) {
             this->setH((hl & 0x0FFF) + (bc & 0x0FFF) > 0x0FFF);
             this->setC(static_cast<uint32_t>(bc) + static_cast<uint32_t>(hl) > 0xFFFF);
             this->setHL(bc + hl);
-            this->setN(0);
+            this->setN(false);
             return 8;
         }
 
@@ -212,14 +212,14 @@ uint8_t CPU::execute(uint8_t opcode) {
             this->setH((this->C & 0x0F) == 0x0F);
             this->C++;
             this->setZ(this->C == 0);
-            this->setN(0);
+            this->setN(false);
             return 4;
 
         case 0x0D: // DEC C
             this->setH((this->C & 0x0F) == 0x00);
             this->C--;
             this->setZ(this->C == 0);
-            this->setN(1);
+            this->setN(true);
             return 4;
 
         case 0x0E: // LD C,u8
@@ -229,13 +229,18 @@ uint8_t CPU::execute(uint8_t opcode) {
         case 0x0F: { // RRCA
             bool A_0 = static_cast<bool>(this->A & 0x01); // LSB of A
             this->setC(A_0); // C = A_0
-            this->setH(0);
+            this->setH(false);
             this->A >>= 1;
             this->A |= static_cast<uint8_t>(A_0 << 7);
-            this->setZ(0);
-            this->setN(0);
+            this->setZ(false);
+            this->setN(false);
             return 4;
         }
+
+        case 0x10: // STOP
+            this->fetchByte(); // ignore next instruction 0x00
+            // puts the GB into low power standby mode
+            return 4;
 
         case 0x11: // LD DE,u16
             this->setDE(this->fetchWord());
@@ -253,14 +258,14 @@ uint8_t CPU::execute(uint8_t opcode) {
             this->setH((this->D & 0x0F) == 0x0F);
             this->D++;
             this->setZ(this->D == 0);
-            this->setN(0);
+            this->setN(false);
             return 4;
 
         case 0x15: // DEC D
             this->setH((this->D & 0x0F) == 0x00);
             this->D--;
             this->setZ(this->D == 0);
-            this->setN(1);
+            this->setN(true);
             return 4;
 
         case 0x16: // LD D,u8
@@ -271,73 +276,312 @@ uint8_t CPU::execute(uint8_t opcode) {
             bool newCarry = static_cast<bool>((this->A & 0x80) >> 7); // save MSB of A
             this->A <<= 1; // left bit shift
             this->A |= this->getC(); // put C at A_0 position
-            this->setH(0);
-            this->setZ(0);
-            this->setN(0);
+            this->setH(false);
+            this->setZ(false);
+            this->setN(false);
             this->setC(newCarry);
             return 4;
         }
         
-        case 0x18: // JR i8
-            this->PC += static_cast<int16_t>(this->fetchByte());
+        case 0x18: { // JR i8
+            int8_t offset = static_cast<int8_t>(this->fetchByte());
+            this->PC += offset;
             return 12;  
-
-// Done until here !!!!!!!!!
-
-        case 0x19: {// ADD HL,BC
+        }
+        
+        case 0x19: {// ADD HL,DE
             uint16_t hl = getHL();
-            uint16_t bc = getBC();
-            this->setH((hl & 0x0FFF) + (bc & 0x0FFF) > 0x0FFF);
-            this->setC(static_cast<uint32_t>(bc) + static_cast<uint32_t>(hl) > 0xFFFF);
-            this->setHL(bc + hl);
-            this->setN(0);
+            uint16_t de = getDE();
+            this->setH((hl & 0x0FFF) + (de & 0x0FFF) > 0x0FFF);
+            this->setC(static_cast<uint32_t>(de) + static_cast<uint32_t>(hl) > 0xFFFF);
+            this->setHL(de + hl);
+            this->setN(false);
             return 8;
         }
 
-        case 0x1A: // LD A,(BC)
-        this->A = this->bus.read(this->getBC());
+        case 0x1A: // LD A,(DE)
+        this->A = this->bus.read(this->getDE());
         return 8;
 
-        case 0x1B: // DEC BC
-        this->setBC(this->getBC() - 1);
+        case 0x1B: // DEC DE
+        this->setDE(this->getDE() - 1);
         return 8;
 
-        case 0x1C: // INC C
-            this->setH((this->C & 0x0F) == 0x0F);
-            this->C++;
-            this->setZ(this->C == 0);
-            this->setN(0);
+        case 0x1C: // INC E
+            this->setH((this->E & 0x0F) == 0x0F);
+            this->E++;
+            this->setZ(this->E == 0);
+            this->setN(false);
             return 4;
 
-        case 0x1D: // DEC C
-            this->setH((this->C & 0x0F) == 0x0F);
-            this->C--;
-            this->setZ(this->C == 0);
-            this->setN(0);
+        case 0x1D: // DEC E
+            this->setH((this->E & 0x0F) == 0x00);
+            this->E--;
+            this->setZ(this->E == 0);
+            this->setN(true);
             return 4;
 
-        case 0x1E: // LD C,u8
-            this->C = fetchByte();
+        case 0x1E: // LD E,u8
+            this->E = fetchByte();
             return 8;        
             
-        case 0x1F: { // RRCA
-            bool A_0 = static_cast<bool>(this->A & 0x01); // LSB of A
-            this->setC(A_0); // C = A_0
-            this->setH(0);
-            this->A >>= 1;
-            this->A |= static_cast<uint8_t>(A_0 << 7);
-            this->setZ(0);
-            this->setN(0);
+        case 0x1F: { // RRA
+            bool newCarry = static_cast<bool>(this->A & 0x01); // save LSB of A
+            this->A >>= 1; // right bit shift
+            this->A |= static_cast<uint8_t>(this->getC() << 7); // put Carry at A_7 position
+            this->setH(false);
+            this->setZ(false);
+            this->setN(false);
+            this->setC(newCarry);
             return 4;
         }
 
+        case 0x20: { // JR NZ,i8
+            int8_t offset = static_cast<int8_t>(this->fetchByte());
+            if (!getZ()) { // Z is false, jump
+                this->PC += offset;
+                return 12;
+            }
+            else { // Z is true, no jump
+                return 8;
+            }
+        }
+        
         case 0x21: // LD HL,u16
             this->setHL(this->fetchWord());
             return 12;
+
+        case 0x22: { // LD (HL+),A
+            uint16_t hl = this->getHL();
+            this->bus.write(hl, this->A);
+            this->setHL(hl + 1);
+            return 8;
+        }
+
+        case 0x23: // INC HL
+            this->setHL(this->getHL() + 1);
+            return 8;
         
+        case 0x24: // INC H
+            this->setH((this->H & 0x0F) == 0x0F);
+            this->H++;
+            this->setZ(this->H == 0);
+            this->setN(false);
+            return 4;
+
+        case 0x25: // DEC H
+            this->setH((this->H & 0x0F) == 0x00);
+            this->H--;
+            this->setZ(this->H == 0);
+            this->setN(true);
+            return 4;
+
+        case 0x26: // LD H,u8
+            this->H = this->fetchByte();
+            return 8;
+
+        case 0x27: { // DAA (Decimal Adjust Accumulator)
+            uint8_t adjust = 0;
+            bool carry = this->getC();
+            bool substract = this->getN();
+
+            // lower nibble
+            if (this->getH() || (!substract && ( (this->A & 0x0F) > 0x09) )) {
+                adjust |= 0x06;
+            }
+
+            // upper nibble
+            if (carry || (!substract && (this->A > 0x99) )) {
+                adjust |= 0x60;
+                carry = true;
+            }
+
+            // apply the adjustement, + or - depending on N
+            if (substract) { 
+                this->A -= adjust;
+            }
+            else {
+                this->A += adjust;
+            }
+
+            setH(false);
+            setZ(this->A == 0);
+            setC(carry);
+            return 4;
+        }
+        
+        case 0x28: { // JR Z,i8
+            int8_t offset = static_cast<int8_t>(this->fetchByte());
+            if (getZ()) { // Z is true, jump
+                this->PC += offset;
+                return 12;
+            }
+            else { // Z is false, no jump
+                return 8;
+            }
+        }
+
+        case 0x29: {// ADD HL,HL
+            uint16_t hl = getHL();
+            this->setH((hl & 0x0FFF) + (hl & 0x0FFF) > 0x0FFF);
+            this->setC(static_cast<uint32_t>(hl) + static_cast<uint32_t>(hl) > 0xFFFF);
+            this->setHL(hl + hl);
+            this->setN(false);
+            return 8;
+        }
+
+        case 0x2A: {// LD A,(HL+)
+            uint16_t hl = this->getHL();
+            this->A = this->bus.read(hl);
+            this->setHL(hl + 1); // increment HL by 1
+            return 8;
+        }
+
+        case 0x2B: // DEC HL
+        this->setHL(this->getHL() - 1);
+        return 8;
+
+        case 0x2C: // INC L
+            this->setH((this->L & 0x0F) == 0x0F);
+            this->L++;
+            this->setZ(this->L == 0);
+            this->setN(false);
+            return 4;
+
+        case 0x2D: // DEC L
+            this->setH((this->L & 0x0F) == 0x00);
+            this->L--;
+            this->setZ(this->L == 0);
+            this->setN(true);
+            return 4;
+
+        case 0x2E: // LD L,u8
+            this->L = fetchByte();
+            return 8;        
+          
+        case 0x2F: { // CPL
+            this->A ^= 0xFF; // complement is equivalent to XOR 0xFF
+            this->setH(true);
+            this->setN(true);
+            return 4;
+        }
+
+        case 0x30: { // JR NC,i8
+            int8_t offset = static_cast<int8_t>(this->fetchByte());
+            if (!getC()) { // C is false, jump
+                this->PC += offset;
+                return 12;
+            }
+            else { // Z is true, no jump
+                return 8;
+            }
+        }
+
         case 0x31: // LD SP,u16
             this->SP = this->fetchWord(); // lower
             return 12;
+
+        case 0x32: { // LD (HL-),A
+            uint16_t hl = this->getHL();
+            this->bus.write(hl, this->A);
+            this->setHL(hl - 1);
+            return 8;
+        }
+
+        case 0x33: // INC SP
+            this->SP++;
+            return 8;
+        
+        case 0x34: { // INC (HL)
+            uint16_t hl = this->getHL();
+            uint16_t data = this->bus.read(hl);
+
+            this->setH((data++ & 0x0F) == 0x0F);
+            this->bus.write(hl, data);
+            this->setZ(data == 0);
+            this->setN(false);
+            return 12;
+        }
+        case 0x35: { // DEC (HL)
+            uint16_t hl = this->getHL();
+            uint16_t data = this->bus.read(hl);
+
+            this->setH((data-- & 0x0F) == 0x00);
+            this->bus.write(hl, data);
+            this->setZ(data == 0);
+            this->setN(false);
+            return 12;
+        }
+
+        case 0x36: { // LD (HL),u8
+            uint16_t hl = this->getHL();
+
+            this->bus.write(hl,this->fetchByte());
+            return 12;
+        }
+
+        case 0x37: { // SCF (Set Carry Flag)
+            this->setH(false);
+            this->setN(false);
+            this->setC(true);
+            return 4;
+        }
+        
+        case 0x38: { // JR C,i8
+            int8_t offset = static_cast<int8_t>(this->fetchByte());
+            if (getC()) { // C is true, jump
+                this->PC += offset;
+                return 12;
+            }
+            else { // Z is false, no jump
+                return 8;
+            }
+        }
+/* TO_DO
+        case 0x39: {// ADD HL,HL
+            uint16_t hl = getHL();
+            this->setH((hl & 0x0FFF) + (hl & 0x0FFF) > 0x0FFF);
+            this->setC(static_cast<uint32_t>(hl) + static_cast<uint32_t>(hl) > 0xFFFF);
+            this->setHL(hl + hl);
+            this->setN(false);
+            return 8;
+        }
+
+        case 0x3A: {// LD A,(HL+)
+            uint16_t hl = this->getHL();
+            this->A = this->bus.read(hl);
+            this->setHL(hl + 1); // increment HL by 1
+            return 8;
+        }
+
+        case 0x3B: // DEC HL
+        this->setHL(this->getHL() - 1);
+        return 8;
+
+        case 0x3C: // INC L
+            this->setH((this->L & 0x0F) == 0x0F);
+            this->L++;
+            this->setZ(this->L == 0);
+            this->setN(false);
+            return 4;
+
+        case 0x3D: // DEC L
+            this->setH((this->L & 0x0F) == 0x00);
+            this->L--;
+            this->setZ(this->L == 0);
+            this->setN(true);
+            return 4;
+
+        case 0x3E: // LD L,u8
+            this->L = fetchByte();
+            return 8;        
+*/         
+        case 0x3F: { // CCF (Complement Carry Flag)
+            this->setH(false);
+            this->setN(false);
+            this->setC(!this->getC()); // complement C
+            return 4;
+        }
 
         case 0xC3: // JP u16
             this->PC = this->fetchWord(); // PC -> u16
