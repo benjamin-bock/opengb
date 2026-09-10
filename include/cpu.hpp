@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <cstdlib>
+#include <sys/types.h>
 
 #include "bus.hpp"
 
@@ -40,10 +42,25 @@ class CPU {
         // 16-bit register
         uint16_t SP, PC; // stack pointer, program counter
 
+        // CPU methods
         uint8_t step();
         uint8_t fetchByte();
         uint16_t fetchWord();
         void writeByte(uint16_t addr, uint8_t byte);
         void writeWord(uint16_t addr, uint16_t word);
         uint8_t execute(uint8_t opcode);
+
+        // CPU instructions helper
+        uint8_t ADD(uint8_t A, uint8_t B);
+        uint8_t SUB(uint8_t A, uint8_t B);
+
+        uint8_t ADC(uint8_t A, uint8_t B);
+        uint8_t SBC(uint8_t A, uint8_t B); 
+
+        uint8_t AND(uint8_t A, uint8_t B);
+        uint8_t XOR(uint8_t A, uint8_t B);
+        uint8_t OR(uint8_t A, uint8_t B);
+
+        uint8_t CP(uint8_t A, uint8_t B);
+
 };

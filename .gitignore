@@ -12,6 +12,7 @@
 *.gbc
 *.gba
 build/
+tools/
 .*.md
 pandocs/
 gbops/

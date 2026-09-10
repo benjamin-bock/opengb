@@ -1,6 +1,5 @@
 #include "../include/cpu.hpp"
 #include <cstdint>
-#include <sys/types.h>
 
 CPU::CPU(Bus& bus) : bus(bus){
     A = 0x01; // hardware checks wich console is running (GB, GBC, GBA, etc.)
@@ -290,8 +289,8 @@ uint8_t CPU::execute(uint8_t opcode) {
         }
         
         case 0x19: {// ADD HL,DE
-            uint16_t hl = getHL();
-            uint16_t de = getDE();
+            uint16_t hl = this->getHL();
+            uint16_t de = this->getDE();
             this->setH((hl & 0x0FFF) + (de & 0x0FFF) > 0x0FFF);
             this->setC(static_cast<uint32_t>(de) + static_cast<uint32_t>(hl) > 0xFFFF);
             this->setHL(de + hl);
@@ -422,7 +421,7 @@ uint8_t CPU::execute(uint8_t opcode) {
         }
 
         case 0x29: {// ADD HL,HL
-            uint16_t hl = getHL();
+            uint16_t hl = this->getHL();
             this->setH((hl & 0x0FFF) + (hl & 0x0FFF) > 0x0FFF);
             this->setC(static_cast<uint32_t>(hl) + static_cast<uint32_t>(hl) > 0xFFFF);
             this->setHL(hl + hl);
@@ -537,45 +536,44 @@ uint8_t CPU::execute(uint8_t opcode) {
                 return 8;
             }
         }
-/* TO_DO
-        case 0x39: {// ADD HL,HL
-            uint16_t hl = getHL();
-            this->setH((hl & 0x0FFF) + (hl & 0x0FFF) > 0x0FFF);
-            this->setC(static_cast<uint32_t>(hl) + static_cast<uint32_t>(hl) > 0xFFFF);
-            this->setHL(hl + hl);
+        case 0x39: {// ADD HL,SP
+            uint16_t hl = this->getHL();
+            this->setH((hl & 0x0FFF) + (this->SP & 0x0FFF) > 0x0FFF);
+            this->setC(hl + this->SP > 0xFFFF);
+            this->setHL(hl + this->SP);
             this->setN(false);
             return 8;
-        }
-
-        case 0x3A: {// LD A,(HL+)
+            }
+            
+        case 0x3A: {// LD A,(HL-)
             uint16_t hl = this->getHL();
             this->A = this->bus.read(hl);
-            this->setHL(hl + 1); // increment HL by 1
+            this->setHL(hl - 1); // decrement HL by 1
             return 8;
-        }
-
-        case 0x3B: // DEC HL
-        this->setHL(this->getHL() - 1);
+            }
+            
+        case 0x3B: // DEC SP
+        this->SP--;
         return 8;
+        
+        case 0x3C: // INC A
+        this->setH((this->A & 0x0F) == 0x0F);
+        this->A++;
+        this->setZ(this->A == 0);
+        this->setN(false);
+        return 4;
+        
+        case 0x3D: // DEC A
+        this->setH((this->A & 0x0F) == 0x00);
+        this->A--;
+        this->setZ(this->A == 0);
+        this->setN(true);
+        return 4;
 
-        case 0x3C: // INC L
-            this->setH((this->L & 0x0F) == 0x0F);
-            this->L++;
-            this->setZ(this->L == 0);
-            this->setN(false);
-            return 4;
-
-        case 0x3D: // DEC L
-            this->setH((this->L & 0x0F) == 0x00);
-            this->L--;
-            this->setZ(this->L == 0);
-            this->setN(true);
-            return 4;
-
-        case 0x3E: // LD L,u8
-            this->L = fetchByte();
+        case 0x3E: // LD A,u8
+            this->A = fetchByte();
             return 8;        
-*/         
+         
         case 0x3F: { // CCF (Complement Carry Flag)
             this->setH(false);
             this->setN(false);
@@ -583,11 +581,635 @@ uint8_t CPU::execute(uint8_t opcode) {
             return 4;
         }
 
+        case 0x40: // LD B,B
+            // this->B = this->B; is not possible in C++, equivalent to NOP
+            return 4;
+
+        case 0x41: // LD B,C
+            this->B = this->C;
+            return 4;
+
+        case 0x42: // LD B,D
+            this->B = this->D;
+            return 4;
+  
+        case 0x43: // LD B,E
+            this->B = this->E;
+            return 4;
+  
+        case 0x44: // LD B,H
+            this->B = this->H;
+            return 4;
+  
+        case 0x45: // LD B,L
+            this->B = this->L;
+            return 4;
+  
+        case 0x46: // LD B,(HL)
+            this->B = this->bus.read(this->getHL());
+            return 8;
+
+        case 0x47: // LD B,A
+            this->B = this->A;
+            return 4;
+
+        case 0x48: // LD C,B
+            this->C = this->B;
+            return 4;
+
+        case 0x49: // LD C,C
+            // this->C = this->B; is not possible in C++, equivalent to NOP
+            return 4;
+
+        case 0x4A: // LD C,D
+            this->C = this->D;
+            return 4;
+  
+        case 0x4B: // LD C,E
+            this->C = this->E;
+            return 4;
+  
+        case 0x4C: // LD C,H
+            this->C = this->H;
+            return 4;
+  
+        case 0x4D: // LD C,L
+            this->C = this->L;
+            return 4;
+  
+        case 0x4E: // LD C,(HL)
+            this->C = this->bus.read(this->getHL());
+            return 8;
+
+        case 0x4F: // LD C,A
+            this->C = this->A;
+            return 4;
+
+        case 0x50: // LD D,B
+            this->D = this->B;
+            return 4;
+
+        case 0x51: // LD D,C
+            this->D = this->C;
+            return 4;
+
+        case 0x52: // LD D,D
+            // this->D = this->D; is not possible in C++, equivalent to NOP
+            return 4;
+  
+        case 0x53: // LD D,E
+            this->D = this->E;
+            return 4;
+  
+        case 0x54: // LD D,H
+            this->D = this->H;
+            return 4;
+  
+        case 0x55: // LD D,L
+            this->D = this->L;
+            return 4;
+  
+        case 0x56: // LD D,(HL)
+            this->D = this->bus.read(this->getHL());
+            return 8;
+
+        case 0x57: // LD D,A
+            this->D = this->A;
+            return 4;
+
+        case 0x58: // LD E,B
+            this->E = this->B;
+            return 4;
+
+        case 0x59: // LD E,C
+            this->E = this->C;
+            return 4;
+
+        case 0x5A: // LD E,D
+            this->E = this->D;
+            return 4;
+  
+        case 0x5B: // LD E,E
+            // this->E = this->E; is not possible in C++, equivalent to NOP
+            return 4;
+  
+        case 0x5C: // LD E,H
+            this->E = this->H;
+            return 4;
+  
+        case 0x5D: // LD E,L
+            this->E = this->L;
+            return 4;
+  
+        case 0x5E: // LD E,(HL)
+            this->E = this->bus.read(this->getHL());
+            return 8;
+
+        case 0x5F: // LD E,A
+            this->E = this->A;
+            return 4;
+
+        case 0x60: // LD H,B
+            this->H = this->B;
+            return 4;
+
+        case 0x61: // LD H,C
+            this->H = this->C;
+            return 4;
+
+        case 0x62: // LD H,D
+            this->H = this->D; 
+            return 4;
+  
+        case 0x63: // LD H,E
+            this->H = this->E;
+            return 4;
+  
+        case 0x64: // LD H,H
+            // this->H = this->H; is not possible in C++, equivalent to NOP
+            return 4;
+  
+        case 0x65: // LD H,L
+            this->H = this->L;
+            return 4;
+  
+        case 0x66: // LD H,(HL)
+            this->H = this->bus.read(this->getHL());
+            return 8;
+
+        case 0x67: // LD H,A
+            this->H = this->A;
+            return 4;
+
+        case 0x68: // LD L,B
+            this->L = this->B;
+            return 4;
+
+        case 0x69: // LD L,C
+            this->L = this->C;
+            return 4;
+
+        case 0x6A: // LD L,D
+            this->L = this->D;
+            return 4;
+  
+        case 0x6B: // LD L,E
+            this->L = this->E;
+            return 4;
+  
+        case 0x6C: // LD L,H
+            this->L = this->H;
+            return 4;
+  
+        case 0x6D: // LD L,L
+            // this->L = this->L; is not possible in C++, equivalent to NOP
+            return 4;
+  
+        case 0x6E: // LD L,(HL)
+            this->L = this->bus.read(this->getHL());
+            return 8;
+
+        case 0x6F: // LD L,A
+            this->L = this->A;
+            return 4;
+
+        case 0x70: // LD (HL),B
+            this->bus.write(getHL(), this->B);
+            return 8;
+  
+        case 0x71: // LD (HL),C
+            this->bus.write(getHL(), this->C);
+            return 8;
+    
+        case 0x72: // LD (HL),D
+            this->bus.write(getHL(), this->D);
+            return 8;
+  
+        case 0x73: // LD (HL),E
+            this->bus.write(getHL(), this->E);
+            return 8;
+  
+        case 0x74: // LD (HL),H
+            this->bus.write(getHL(), this->H);
+            return 8;
+  
+        case 0x75: // LD (HL),L
+            this->bus.write(getHL(), this->L);
+            return 8;
+  
+        case 0x76: // HALT
+            // stops the execution of the program without changing the clock frequency
+            return 4;
+  
+        case 0x77: // LD (HL),A
+            this->bus.write(getHL(), this->A);
+            return 8;
+
+        case 0x78: // LD A,B
+            this->A = this->B;
+            return 4;
+
+        case 0x79: // LD A,C
+            this->A = this->C;
+            return 4;
+
+        case 0x7A: // LD A,D
+            this->A = this->D;
+            return 4;
+  
+        case 0x7B: // LD A,E
+            this->A = this->E;
+            return 4;
+  
+        case 0x7C: // LD A,H
+            this->A = this->H;
+            return 4;
+  
+        case 0x7D: // LD A,L
+            this->A = this->L; 
+            return 4;
+  
+        case 0x7E: // LD A,(HL)
+            this->A = this->bus.read(this->getHL());
+            return 8;
+
+        case 0x7F: // LD A,A
+            // this->A = this->A; is not possible in C++, equivalent to NOP
+            return 4;
+
+        case 0x80: // ADD A,B
+            return this->ADD(this->A, this->B);
+  
+        case 0x81: // ADD A,C
+            return this->ADD(this->A, this->C);
+  
+        case 0x82: // ADD A,D
+            return this->ADD(this->A, this->D);
+  
+        case 0x83: // ADD A,E
+            return this->ADD(this->A, this->E);
+ 
+        case 0x84: // ADD A,H
+            return this->ADD(this->A, this->H);
+
+        case 0x85: // ADD A,L
+            return this->ADD(this->A, this->L);
+ 
+        case 0x86: { // ADD A,(HL)
+            uint8_t data = this->bus.read(this->getHL());
+            return this->ADD(this->A, data);
+        }
+
+        case 0x87: // ADD A,A
+            return this->ADD(this->A, this->A);
+ 
+        case 0x88: // ADC A,B
+            return this->ADC(this->A, this->B);
+  
+        case 0x89: // ADC A,C
+            return this->ADC(this->A, this->C);
+  
+        case 0x8a: // ADC A,D
+            return this->ADC(this->A, this->D);
+  
+        case 0x8B: // ADC A,E
+            return this->ADC(this->A, this->E);
+  
+        case 0x8C: // ADC A,H
+            return this->ADC(this->A, this->H);
+  
+        case 0x8D: // ADC A,L
+            return this->ADC(this->A, this->L);
+  
+        case 0x8E: { // ADC A,(HL)
+            uint8_t data = this->bus.read(this->getHL());
+            return this->ADC(this->A, data);
+        }
+
+        case 0x8F: // ADC A,A
+            return this->ADC(this->A, this->A);
+ 
+        case 0x90: // SUB A,B
+            return this->SUB(this->A, this->B);
+  
+        case 0x91: // SUB A,C
+            return this->SUB(this->A, this->C);
+  
+        case 0x92: // SUB A,D
+            return this->SUB(this->A, this->D);
+  
+        case 0x93: // SUB A,E
+            return this->SUB(this->A, this->E);
+ 
+        case 0x94: // SUB A,H
+            return this->SUB(this->A, this->H);
+
+        case 0x95: // SUB A,L
+            return this->SUB(this->A, this->L);
+ 
+        case 0x96: { // SUB A,(HL)
+            uint8_t data = this->bus.read(this->getHL());
+            return this->SUB(this->A, data);
+        }
+
+        case 0x97: // SUB A,A
+            return this->SUB(this->A, this->A);
+ 
+        case 0x98: // SBC A,B
+            return this->SBC(this->A, this->B);
+  
+        case 0x99: // SBC A,C
+            return this->SBC(this->A, this->C);
+  
+        case 0x9a: // SBC A,D
+            return this->SBC(this->A, this->D);
+  
+        case 0x9B: // SBC A,E
+            return this->SBC(this->A, this->E);
+  
+        case 0x9C: // SBC A,H
+            return this->SBC(this->A, this->H);
+  
+        case 0x9D: // SBC A,L
+            return this->SBC(this->A, this->L);
+  
+        case 0x9E: { // SBC A,(HL)
+            uint8_t data = this->bus.read(this->getHL());
+            return this->SBC(this->A, data);
+        }
+
+        case 0x9F: // SBC A,A
+            return this->SBC(this->A, this->A);
+
+        case 0xA0: //
+  
+        case 0xA1: //
+  
+        case 0xA2: //
+  
+        case 0xA3: //
+  
+        case 0xA4: //
+  
+        case 0xA5: //
+  
+        case 0xA6: //
+  
+        case 0xA7: //
+  
+        case 0xA8: //
+  
+        case 0xA9: //
+  
+        case 0xAa: //
+  
+        case 0xAB: //
+  
+        case 0xAC: //
+  
+        case 0xAD: //
+  
+        case 0xAE: //
+  
+        case 0xAF: //
+  
+        case 0xB0: //
+  
+        case 0xB1: //
+  
+        case 0xB2: //
+  
+        case 0xB3: //
+  
+        case 0xB4: //
+  
+        case 0xB5: //
+  
+        case 0xB6: //
+  
+        case 0xB7: //
+  
+        case 0xB8: //
+  
+        case 0xB9: //
+  
+        case 0xBa: //
+  
+        case 0xBB: //
+  
+        case 0xBC: //
+  
+        case 0xBD: //
+  
+        case 0xBE: //
+  
+        case 0xBF: //
+  
+        case 0xC0: //
+  
+        case 0xC1: //
+  
+        case 0xC2: //
+  
         case 0xC3: // JP u16
             this->PC = this->fetchWord(); // PC -> u16
             return 16;
+  
+        case 0xC4: //
+  
+        case 0xC5: //
+  
+        case 0xC6: //
+  
+        case 0xC7: //
+  
+        case 0xC8: //
+  
+        case 0xC9: //
+  
+        case 0xCa: //
+  
+        case 0xCB: //
+  
+        case 0xCC: //
+  
+        case 0xCD: //
+  
+        case 0xCE: //
+  
+        case 0xCF: //
+  
+        case 0xD0: //
+  
+        case 0xD1: //
+  
+        case 0xD2: //
+  
+        case 0xD3: //
+  
+        case 0xD4: //
+  
+        case 0xD5: //
+  
+        case 0xD6: //
+  
+        case 0xD7: //
+  
+        case 0xD8: //
+  
+        case 0xD9: //
+  
+        case 0xDa: //
+  
+        case 0xDB: //
+  
+        case 0xDC: //
+  
+        case 0xDD: //
+  
+        case 0xDE: //
+  
+        case 0xDF: //
+  
+        case 0xE0: //
+  
+        case 0xE1: //
+  
+        case 0xE2: //
+  
+        case 0xE3: //
+  
+        case 0xE4: //
+  
+        case 0xE5: //
+  
+        case 0xE6: //
+  
+        case 0xE7: //
+  
+        case 0xE8: //
+  
+        case 0xE9: //
+  
+        case 0xEa: //
+  
+        case 0xEB: //
+  
+        case 0xEC: //
+  
+        case 0xED: //
+  
+        case 0xEE: //
+  
+        case 0xEF: //
+  
+        case 0xF0: //
+  
+        case 0xF1: //
+  
+        case 0xF2: //
+  
+        case 0xF3: //
+  
+        case 0xF4: //
+  
+        case 0xF5: //
+  
+        case 0xF6: //
+  
+        case 0xF7: //
+  
+        case 0xF8: //
+  
+        case 0xF9: //
+  
+        case 0xFa: //
+  
+        case 0xFB: //
+  
+        case 0xFC: //
+  
+        case 0xFD: //
+  
+        case 0xFE: //  
 
         default:
             return 0;
     }
+}
+
+uint8_t CPU::ADD(uint8_t A, uint8_t B) {
+    this->setH((this->A & 0x0F) + (this->B & 0x0F) > 0x0F);
+    this->setC(static_cast<uint16_t>(this->A) + static_cast<uint16_t>(this->B) > 0xFF);
+    this->A += this->B;
+    this->setZ(this->A == 0);
+    this->setN(false);
+    return 4;
+}
+
+uint8_t CPU::ADC(uint8_t A, uint8_t B) {
+    bool carry = this->getC();
+    this->setH((this->A & 0x0F) + (this->B & 0x0F) + carry > 0x0F);
+    this->setC(static_cast<uint16_t>(this->A) + static_cast<uint16_t>(this->B) + carry > 0xFF);
+    this->A += this->B + carry;
+    this->setZ(this->A == 0);
+    this->setN(false);
+    return 4;
+}
+
+uint8_t CPU::SUB(uint8_t A, uint8_t B) {
+    this->setH((this->A & 0x0F) < (this->B & 0x0F));
+    this->setC(this->A < this->B);
+    this->A -= this->B;
+    this->setZ(this->A == 0);
+    this->setN(true);
+    return 4;
+}
+
+uint8_t CPU::SBC(uint8_t A, uint8_t B) {
+    bool carry = this->getC();
+    this->setH((this->A & 0x0F) < (this->B & 0x0F) + carry);
+    this->setC(this->A < this->B + carry);
+    this->A -= this->B + carry;
+    this->setZ(this->A == 0);
+    this->setN(true);
+    return 4;
+}
+
+uint8_t CPU::AND(uint8_t A, uint8_t B) {
+    this->A &= this->B;
+    this->setH(true);
+    this->setN(false);
+    this->setZ(this->A == 0);
+    this->setC(false);
+    return 4;
+}
+
+uint8_t CPU::XOR(uint8_t A, uint8_t B) {
+    this->A ^= this->B;
+    this->setH(false);
+    this->setN(false);
+    this->setZ(this->A == 0);
+    this->setC(false);
+    return 4;
+}
+
+uint8_t CPU::OR(uint8_t A, uint8_t B) {
+    this->A |= this->B;
+    this->setH(false);
+    this->setN(false);
+    this->setZ(this->A == 0);
+    this->setC(false);
+    return 4;
+}
+
+uint8_t CPU::CP(uint8_t A, uint8_t B) {
+    uint8_t a = this->A;
+    uint8_t b = this->B;
+    this->setH((a & 0x0F) < (b & 0x0F));
+    this->setC(a < b);
+    a -= b;
+    this->setZ(a == 0);
+    this->setN(true);
+    return 4;
 }
