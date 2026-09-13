@@ -51,16 +51,16 @@ class CPU {
         uint8_t execute(uint8_t opcode);
 
         // CPU instructions helper
-        uint8_t ADD(uint8_t A, uint8_t B);
-        uint8_t SUB(uint8_t A, uint8_t B);
+        uint8_t ADD(uint8_t reg); // comparison are always between the accumulator and the register
+        uint8_t SUB(uint8_t reg);
 
-        uint8_t ADC(uint8_t A, uint8_t B);
-        uint8_t SBC(uint8_t A, uint8_t B); 
+        uint8_t ADC(uint8_t reg);
+        uint8_t SBC(uint8_t reg); 
 
-        uint8_t AND(uint8_t A, uint8_t B);
-        uint8_t XOR(uint8_t A, uint8_t B);
-        uint8_t OR(uint8_t A, uint8_t B);
+        uint8_t AND(uint8_t reg);
+        uint8_t XOR(uint8_t reg);
+        uint8_t OR(uint8_t reg);
 
-        uint8_t CP(uint8_t A, uint8_t B);
+        uint8_t CP(uint8_t reg);
 
 };

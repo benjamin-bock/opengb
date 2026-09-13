@@ -838,172 +838,212 @@ uint8_t CPU::execute(uint8_t opcode) {
             return 4;
 
         case 0x80: // ADD A,B
-            return this->ADD(this->A, this->B);
+            return this->ADD(this->B);
   
         case 0x81: // ADD A,C
-            return this->ADD(this->A, this->C);
+            return this->ADD(this->C);
   
         case 0x82: // ADD A,D
-            return this->ADD(this->A, this->D);
+            return this->ADD(this->D);
   
         case 0x83: // ADD A,E
-            return this->ADD(this->A, this->E);
+            return this->ADD(this->E);
  
         case 0x84: // ADD A,H
-            return this->ADD(this->A, this->H);
+            return this->ADD(this->H);
 
         case 0x85: // ADD A,L
-            return this->ADD(this->A, this->L);
+            return this->ADD(this->L);
  
         case 0x86: { // ADD A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->ADD(this->A, data);
+            return this->ADD(data);
         }
 
         case 0x87: // ADD A,A
-            return this->ADD(this->A, this->A);
+            return this->ADD(this->A);
  
         case 0x88: // ADC A,B
-            return this->ADC(this->A, this->B);
+            return this->ADC(this->B);
   
         case 0x89: // ADC A,C
-            return this->ADC(this->A, this->C);
+            return this->ADC(this->C);
   
         case 0x8a: // ADC A,D
-            return this->ADC(this->A, this->D);
+            return this->ADC(this->D);
   
         case 0x8B: // ADC A,E
-            return this->ADC(this->A, this->E);
+            return this->ADC(this->E);
   
         case 0x8C: // ADC A,H
-            return this->ADC(this->A, this->H);
+            return this->ADC(this->H);
   
         case 0x8D: // ADC A,L
-            return this->ADC(this->A, this->L);
+            return this->ADC(this->L);
   
         case 0x8E: { // ADC A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->ADC(this->A, data);
+            return this->ADC(data);
         }
 
         case 0x8F: // ADC A,A
-            return this->ADC(this->A, this->A);
+            return this->ADC(this->A);
  
         case 0x90: // SUB A,B
-            return this->SUB(this->A, this->B);
+            return this->SUB(this->B);
   
         case 0x91: // SUB A,C
-            return this->SUB(this->A, this->C);
+            return this->SUB(this->C);
   
         case 0x92: // SUB A,D
-            return this->SUB(this->A, this->D);
+            return this->SUB(this->D);
   
         case 0x93: // SUB A,E
-            return this->SUB(this->A, this->E);
+            return this->SUB(this->E);
  
         case 0x94: // SUB A,H
-            return this->SUB(this->A, this->H);
+            return this->SUB(this->H);
 
         case 0x95: // SUB A,L
-            return this->SUB(this->A, this->L);
+            return this->SUB(this->L);
  
         case 0x96: { // SUB A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->SUB(this->A, data);
+            return this->SUB(data);
         }
 
         case 0x97: // SUB A,A
-            return this->SUB(this->A, this->A);
+            return this->SUB(this->A);
  
         case 0x98: // SBC A,B
-            return this->SBC(this->A, this->B);
+            return this->SBC(this->B);
   
         case 0x99: // SBC A,C
-            return this->SBC(this->A, this->C);
+            return this->SBC(this->C);
   
         case 0x9a: // SBC A,D
-            return this->SBC(this->A, this->D);
+            return this->SBC(this->D);
   
         case 0x9B: // SBC A,E
-            return this->SBC(this->A, this->E);
+            return this->SBC(this->E);
   
         case 0x9C: // SBC A,H
-            return this->SBC(this->A, this->H);
+            return this->SBC(this->H);
   
         case 0x9D: // SBC A,L
-            return this->SBC(this->A, this->L);
+            return this->SBC(this->L);
   
         case 0x9E: { // SBC A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->SBC(this->A, data);
+            return this->SBC(data);
         }
 
         case 0x9F: // SBC A,A
-            return this->SBC(this->A, this->A);
+            return this->SBC(this->A);
 
-        case 0xA0: //
+        case 0xA0: // AND A,B
+            return this->AND(this->B);
   
-        case 0xA1: //
+        case 0xA1: // AND A,C
+            return this->AND(this->C);
   
-        case 0xA2: //
+        case 0xA2: // AND A,D
+            return this->AND(this->D);
   
-        case 0xA3: //
+        case 0xA3: // AND A,E
+            return this->AND(this->E);
   
-        case 0xA4: //
+        case 0xA4: // AND A,H
+            return this->AND(this->H);
   
-        case 0xA5: //
+        case 0xA5: // AND A,L
+            return this->AND(this->L);
   
-        case 0xA6: //
+        case 0xA6: { // AND A,(HL)
+            uint8_t data = this->bus.read(this->getHL());
+            return this->AND(data);
+        }
   
-        case 0xA7: //
+        case 0xA7: // AND A,A
+            return this->AND(this->A);
   
-        case 0xA8: //
+        case 0xA8: // XOR A,B
+            return this->XOR(this->B);
   
-        case 0xA9: //
+        case 0xA9: // XOR A,C
+            return this->XOR(this->C);
   
-        case 0xAa: //
+        case 0xAa: // XOR A,D
+            return this->XOR(this->D);
   
-        case 0xAB: //
+        case 0xAB: // XOR A,E
+            return this->XOR(this->E);
   
-        case 0xAC: //
+        case 0xAC: // XOR A,H
+            return this->XOR(this->H);
   
-        case 0xAD: //
+        case 0xAD: // XOR A,L
+            return this->XOR(this->L);
   
-        case 0xAE: //
+        case 0xAE: { // XOR A,(HL)
+            uint8_t data = this->bus.read(this->getHL());
+            return this->XOR(data);
+        }
   
-        case 0xAF: //
+        case 0xAF: // XOR A,A
+            return this->XOR(this->A);
   
-        case 0xB0: //
+        case 0xB0: // OR A,B
+            return this->OR(this->B);
   
-        case 0xB1: //
+        case 0xB1: // OR A,C
+            return this->OR(this->C);
   
-        case 0xB2: //
+        case 0xB2: // OR A,D
+            return this->OR(this->D);
   
-        case 0xB3: //
+        case 0xB3: // OR A,E
+            return this->OR(this->E);
   
-        case 0xB4: //
+        case 0xB4: // OR A,H
+            return this->OR(this->H);
   
-        case 0xB5: //
+        case 0xB5: // OR A,L
+            return this->OR(this->L);
   
-        case 0xB6: //
+        case 0xB6: { // OR A,(HL)
+            uint8_t data = this->bus.read(this->getHL());
+            return this->OR(data);
+        }
   
-        case 0xB7: //
+        case 0xB7: // OR A,A
+            return this->OR(this->A);
   
-        case 0xB8: //
+        case 0xB8: // CP A,B
+            return this->CP(this->B);
   
-        case 0xB9: //
+        case 0xB9: // CP A,C
+            return this->CP(this->C);
   
-        case 0xBa: //
+        case 0xBa: // CP A,D
+            return this->CP(this->D);
   
-        case 0xBB: //
+        case 0xBB: // CP A,E
+            return this->CP(this->E);
   
-        case 0xBC: //
+        case 0xBC: // CP A,H
+            return this->CP(this->H);
   
-        case 0xBD: //
+        case 0xBD: // CP A,L
+            return this->CP(this->L);
   
-        case 0xBE: //
+        case 0xBE: { // CP A,(HL)
+            uint8_t data = this->bus.read(this->getHL());
+            return this->CP(data);
+        }
   
-        case 0xBF: //
+        case 0xBF: // CP A,A
+            return this->CP(this->A);
   
         case 0xC0: //
   
@@ -1138,46 +1178,48 @@ uint8_t CPU::execute(uint8_t opcode) {
     }
 }
 
-uint8_t CPU::ADD(uint8_t A, uint8_t B) {
-    this->setH((this->A & 0x0F) + (this->B & 0x0F) > 0x0F);
-    this->setC(static_cast<uint16_t>(this->A) + static_cast<uint16_t>(this->B) > 0xFF);
-    this->A += this->B;
+uint8_t CPU::ADD(uint8_t reg) {
+    this->setH((this->A & 0x0F) + (reg & 0x0F) > 0x0F);
+    this->setC(static_cast<uint16_t>(this->A) + static_cast<uint16_t>(reg) > 0xFF);
+    this->A += reg;
     this->setZ(this->A == 0);
     this->setN(false);
     return 4;
 }
 
-uint8_t CPU::ADC(uint8_t A, uint8_t B) {
+uint8_t CPU::ADC(uint8_t reg) {
     bool carry = this->getC();
-    this->setH((this->A & 0x0F) + (this->B & 0x0F) + carry > 0x0F);
-    this->setC(static_cast<uint16_t>(this->A) + static_cast<uint16_t>(this->B) + carry > 0xFF);
-    this->A += this->B + carry;
+    this->setH((this->A & 0x0F) + (reg & 0x0F) + carry > 0x0F);
+    this->setC(static_cast<uint16_t>(this->A) + static_cast<uint16_t>(reg) + carry > 0xFF);
+    this->A += reg + carry;
     this->setZ(this->A == 0);
     this->setN(false);
     return 4;
 }
 
-uint8_t CPU::SUB(uint8_t A, uint8_t B) {
-    this->setH((this->A & 0x0F) < (this->B & 0x0F));
-    this->setC(this->A < this->B);
-    this->A -= this->B;
+uint8_t CPU::SUB(uint8_t reg) {
+    this->setH((this->A & 0x0F) < (reg & 0x0F));
+    this->setC(this->A < reg);
+    this->A -= reg;
     this->setZ(this->A == 0);
     this->setN(true);
     return 4;
 }
 
-uint8_t CPU::SBC(uint8_t A, uint8_t B) {
-    bool carry = this->getC();
-    this->setH((this->A & 0x0F) < (this->B & 0x0F) + carry);
-    this->setC(this->A < this->B + carry);
-    this->A -= this->B + carry;
+uint8_t CPU::SBC(uint8_t reg) {
+    int carry = this->getC() ? 1 : 0;
+    int a = this->A;
+    int b = reg;
+    this->setH((a & 0x0F) - (b & 0x0F) - carry < 0);
+    this->setC(a - b - carry < 0);
+    this->A = static_cast<uint8_t>(a - b - carry);
     this->setZ(this->A == 0);
     this->setN(true);
     return 4;
 }
 
-uint8_t CPU::AND(uint8_t A, uint8_t B) {
-    this->A &= this->B;
+uint8_t CPU::AND(uint8_t reg) {
+    this->A &= reg;
     this->setH(true);
     this->setN(false);
     this->setZ(this->A == 0);
@@ -1185,8 +1227,8 @@ uint8_t CPU::AND(uint8_t A, uint8_t B) {
     return 4;
 }
 
-uint8_t CPU::XOR(uint8_t A, uint8_t B) {
-    this->A ^= this->B;
+uint8_t CPU::XOR(uint8_t reg) {
+    this->A ^= reg;
     this->setH(false);
     this->setN(false);
     this->setZ(this->A == 0);
@@ -1194,8 +1236,8 @@ uint8_t CPU::XOR(uint8_t A, uint8_t B) {
     return 4;
 }
 
-uint8_t CPU::OR(uint8_t A, uint8_t B) {
-    this->A |= this->B;
+uint8_t CPU::OR(uint8_t reg) {
+    this->A |= reg;
     this->setH(false);
     this->setN(false);
     this->setZ(this->A == 0);
@@ -1203,13 +1245,10 @@ uint8_t CPU::OR(uint8_t A, uint8_t B) {
     return 4;
 }
 
-uint8_t CPU::CP(uint8_t A, uint8_t B) {
-    uint8_t a = this->A;
-    uint8_t b = this->B;
-    this->setH((a & 0x0F) < (b & 0x0F));
-    this->setC(a < b);
-    a -= b;
-    this->setZ(a == 0);
+uint8_t CPU::CP(uint8_t reg) {
+    this->setH((this->A & 0x0F) < (reg & 0x0F));
+    this->setC(this->A < reg);
+    this->setZ(this->A == reg);
     this->setN(true);
     return 4;
 }
