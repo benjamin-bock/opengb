@@ -12,6 +12,8 @@ class CPU {
     private:
         Bus& bus;
 
+        // 1-bit IME (interrupt master enable)
+        bool IME = false;
         // 8-bit register
         uint8_t A, F, B, C, D, E, H, L;
 
@@ -49,18 +51,26 @@ class CPU {
         void writeByte(uint16_t addr, uint8_t byte);
         void writeWord(uint16_t addr, uint16_t word);
         uint8_t execute(uint8_t opcode);
+        uint8_t executePrefix(uint8_t opcode);
 
         // CPU instructions helper
+        // Arithmetic operations
         uint8_t ADD(uint8_t reg); // comparison are always between the accumulator and the register
         uint8_t SUB(uint8_t reg);
 
         uint8_t ADC(uint8_t reg);
         uint8_t SBC(uint8_t reg); 
 
+        // Comparison operations
         uint8_t AND(uint8_t reg);
         uint8_t XOR(uint8_t reg);
         uint8_t OR(uint8_t reg);
 
         uint8_t CP(uint8_t reg);
+
+        // Stack operations
+        void PUSH(uint16_t reg);
+        uint16_t POP();
+
 
 };

@@ -1,5 +1,7 @@
 #include "../include/cpu.hpp"
+#include <algorithm>
 #include <cstdint>
+#include <sys/types.h>
 
 CPU::CPU(Bus& bus) : bus(bus){
     A = 0x01; // hardware checks wich console is running (GB, GBC, GBA, etc.)
@@ -115,8 +117,8 @@ uint8_t CPU::step() {
 }
 
 uint8_t CPU::fetchByte() {
-    uint8_t opcode = this->bus.read(this->PC++);
-    return opcode;
+    uint8_t instr = this->bus.read(this->PC++);
+    return instr;
 }
 
 uint16_t CPU::fetchWord() {
@@ -138,9 +140,9 @@ void CPU::writeWord(uint16_t addr, uint16_t word) {
     return;
 }
 
-uint8_t CPU::execute(uint8_t opcode) {
+uint8_t CPU::execute(uint8_t instr) {
     // Exécuter l'action et renvoyer le nombre de cycles d'horloge consommés.
-    switch (opcode) {
+    switch (instr) {
         case 0x00: // NOP
             return 4;
 
@@ -149,7 +151,7 @@ uint8_t CPU::execute(uint8_t opcode) {
             return 12;
 
         case 0x02: // LD (BC),A
-            this->bus.write(this->getBC(), this->A);
+            this->writeByte(this->getBC(), this->A);
             return 8;
 
         case 0x03: // INC BC
@@ -246,7 +248,7 @@ uint8_t CPU::execute(uint8_t opcode) {
             return 12;
 
         case 0x12: // LD (DE),A
-            this->bus.write(this->getDE(), this->A);
+            this->writeByte(this->getDE(), this->A);
             return 8;
 
         case 0x13: // INC DE
@@ -299,12 +301,12 @@ uint8_t CPU::execute(uint8_t opcode) {
         }
 
         case 0x1A: // LD A,(DE)
-        this->A = this->bus.read(this->getDE());
-        return 8;
+            this->A = this->bus.read(this->getDE());
+            return 8;
 
         case 0x1B: // DEC DE
-        this->setDE(this->getDE() - 1);
-        return 8;
+            this->setDE(this->getDE() - 1);
+            return 8;
 
         case 0x1C: // INC E
             this->setH((this->E & 0x0F) == 0x0F);
@@ -352,7 +354,7 @@ uint8_t CPU::execute(uint8_t opcode) {
 
         case 0x22: { // LD (HL+),A
             uint16_t hl = this->getHL();
-            this->bus.write(hl, this->A);
+            this->writeByte(hl, this->A);
             this->setHL(hl + 1);
             return 8;
         }
@@ -437,8 +439,8 @@ uint8_t CPU::execute(uint8_t opcode) {
         }
 
         case 0x2B: // DEC HL
-        this->setHL(this->getHL() - 1);
-        return 8;
+            this->setHL(this->getHL() - 1);
+            return 8;
 
         case 0x2C: // INC L
             this->setH((this->L & 0x0F) == 0x0F);
@@ -482,7 +484,7 @@ uint8_t CPU::execute(uint8_t opcode) {
 
         case 0x32: { // LD (HL-),A
             uint16_t hl = this->getHL();
-            this->bus.write(hl, this->A);
+            this->writeByte(hl, this->A);
             this->setHL(hl - 1);
             return 8;
         }
@@ -496,7 +498,7 @@ uint8_t CPU::execute(uint8_t opcode) {
             uint16_t data = this->bus.read(hl);
 
             this->setH((data++ & 0x0F) == 0x0F);
-            this->bus.write(hl, data);
+            this->writeByte(hl, data);
             this->setZ(data == 0);
             this->setN(false);
             return 12;
@@ -506,7 +508,7 @@ uint8_t CPU::execute(uint8_t opcode) {
             uint16_t data = this->bus.read(hl);
 
             this->setH((data-- & 0x0F) == 0x00);
-            this->bus.write(hl, data);
+            this->writeByte(hl, data);
             this->setZ(data == 0);
             this->setN(false);
             return 12;
@@ -515,7 +517,7 @@ uint8_t CPU::execute(uint8_t opcode) {
         case 0x36: { // LD (HL),u8
             uint16_t hl = this->getHL();
 
-            this->bus.write(hl,this->fetchByte());
+            this->writeByte(hl,this->fetchByte());
             return 12;
         }
 
@@ -553,22 +555,22 @@ uint8_t CPU::execute(uint8_t opcode) {
             }
             
         case 0x3B: // DEC SP
-        this->SP--;
-        return 8;
+            this->SP--;
+            return 8;
         
         case 0x3C: // INC A
-        this->setH((this->A & 0x0F) == 0x0F);
-        this->A++;
-        this->setZ(this->A == 0);
-        this->setN(false);
-        return 4;
+            this->setH((this->A & 0x0F) == 0x0F);
+            this->A++;
+            this->setZ(this->A == 0);
+            this->setN(false);
+            return 4;
         
         case 0x3D: // DEC A
-        this->setH((this->A & 0x0F) == 0x00);
-        this->A--;
-        this->setZ(this->A == 0);
-        this->setN(true);
-        return 4;
+            this->setH((this->A & 0x0F) == 0x00);
+            this->A--;
+            this->setZ(this->A == 0);
+            this->setN(true);
+            return 4;
 
         case 0x3E: // LD A,u8
             this->A = fetchByte();
@@ -774,27 +776,27 @@ uint8_t CPU::execute(uint8_t opcode) {
             return 4;
 
         case 0x70: // LD (HL),B
-            this->bus.write(getHL(), this->B);
+            this->writeByte(getHL(), this->B);
             return 8;
   
         case 0x71: // LD (HL),C
-            this->bus.write(getHL(), this->C);
+            this->writeByte(getHL(), this->C);
             return 8;
     
         case 0x72: // LD (HL),D
-            this->bus.write(getHL(), this->D);
+            this->writeByte(getHL(), this->D);
             return 8;
   
         case 0x73: // LD (HL),E
-            this->bus.write(getHL(), this->E);
+            this->writeByte(getHL(), this->E);
             return 8;
   
         case 0x74: // LD (HL),H
-            this->bus.write(getHL(), this->H);
+            this->writeByte(getHL(), this->H);
             return 8;
   
         case 0x75: // LD (HL),L
-            this->bus.write(getHL(), this->L);
+            this->writeByte(getHL(), this->L);
             return 8;
   
         case 0x76: // HALT
@@ -802,7 +804,7 @@ uint8_t CPU::execute(uint8_t opcode) {
             return 4;
   
         case 0x77: // LD (HL),A
-            this->bus.write(getHL(), this->A);
+            this->writeByte(getHL(), this->A);
             return 8;
 
         case 0x78: // LD A,B
@@ -1025,7 +1027,7 @@ uint8_t CPU::execute(uint8_t opcode) {
         case 0xB9: // CP A,C
             return this->CP(this->C);
   
-        case 0xBa: // CP A,D
+        case 0xBA: // CP A,D
             return this->CP(this->D);
   
         case 0xBB: // CP A,E
@@ -1045,93 +1047,231 @@ uint8_t CPU::execute(uint8_t opcode) {
         case 0xBF: // CP A,A
             return this->CP(this->A);
   
-        case 0xC0: //
+        case 0xC0: // RET NZ
+            if (!this->getZ()) {
+                this->PC = this->POP();
+                return 20;
+            } else {
+                return 8;
+            }
   
-        case 0xC1: //
-  
-        case 0xC2: //
-  
+        case 0xC1: // POP BC
+            this->setBC(this->POP());
+            return 12;
+
+        case 0xC2: { // JP NZ,u16
+            uint16_t word = this->fetchWord();
+            if (!this->getZ()) {
+                this->PC = word;
+                return 16;
+            } else {
+                return 12;
+            }
+        }
+
         case 0xC3: // JP u16
             this->PC = this->fetchWord(); // PC -> u16
             return 16;
   
-        case 0xC4: //
+        case 0xC4: { // CALL NZ,u16
+            uint16_t word = this->fetchWord();
+            if (!this->getZ()) {
+                this->PUSH(this->PC);
+                this->PC = word;
+                return 24;
+            } else {
+                return 12;
+            }
+        }
+
+        case 0xC5: // PUSH BC
+            this->PUSH(this->getBC());
+            return 16;
   
-        case 0xC5: //
+        case 0xC6: // ADD A,u8
+            return this->ADD(this->fetchByte()) + 4;
+
+        case 0xC7: // RST 00h
+            this->PUSH(this->PC);
+            this->PC = 0x0000;
+            return 16;
   
-        case 0xC6: //
+        case 0xC8: // RET Z
+            if (this->getZ()) {
+                this->PC = this->POP();
+                return 20;
+            } else {
+                return 8;
+            }
+
+        case 0xC9: // RET
+            this->PC = this->POP();
+            return 16;            
   
-        case 0xC7: //
+        case 0xCA: { // JP Z,u16
+            uint16_t word = this->fetchWord();
+            if (this->getZ()) {
+                this->PC = word;
+                return 16;
+            } else {
+                return 12;
+            }
+        }
+
+        case 0xCB: // PREFIX CB
+            return this->executePrefix(this->fetchByte());
   
-        case 0xC8: //
+        case 0xCC: { // CALL Z,u16
+            uint16_t word = this->fetchWord();
+            if (this->getZ()) {
+                this->PUSH(this->PC);
+                this->PC = word;
+                return 24;
+            } else {
+                return 12;
+            }
+        }
+        case 0xCD: { // CALL u16
+            uint16_t word = this->fetchWord();
+            this->PUSH(this->PC);
+            this->PC = word;
+            return 24;            
+        }
+
+        case 0xCE: // ADC A,u8
+            return this->ADC(this->fetchByte()) + 4;
+
+        case 0xCF: // RST 08h
+            this->PUSH(this->PC);
+            this->PC = 0x0008;
+            return 16;
   
-        case 0xC9: //
+        case 0xD0: // RET NC
+            if (!this->getC()) {
+                this->PC = POP();
+                return 20;
+            } else {
+                return 8;
+            }
+        case 0xD1: // POP DE
+            this->setDE(this->POP());
+            return 12;
+
+        case 0xD2: { // JP NC,u16
+            uint16_t word = this->fetchWord();
+            if (!this->getC()) {
+                this->PC = word;
+                return 16;
+            } else {
+                return 12;
+            }
+        }
+
+        case 0xD3: // void
   
-        case 0xCa: //
+        case 0xD4: { // CALL NC,u16
+            uint16_t word = this->fetchWord();
+            if (!this->getC()) {
+                this->PUSH(this->PC);
+                this->PC = word;
+                return 24;
+            } else {
+                return 12;
+            }
+        }
+
+        case 0xD5: // PUSH DE
+            this->PUSH(this->getDE());
+            return 16;
   
-        case 0xCB: //
+        case 0xD6: // ADD A,u8
+            return this->SUB(this->fetchByte()) + 4;
+
+        case 0xD7: // RST 10h
+            this->PUSH(this->PC);
+            this->PC = 0x0010;
+            return 16;
   
-        case 0xCC: //
+        case 0xD8: // RET C
+            if (this->getC()) {
+                this->PC = this->POP();
+                return 20;
+            } else {
+                return 8;
+            }
+
+        case 0xD9: // RETI
+            this->PC = this->POP();
+            this->IME = true;
+            return 16;            
   
-        case 0xCD: //
+        case 0xDA: { // JP C,u16
+            uint16_t word = this->fetchWord();
+            if (this->getC()) {
+                this->PC = word;
+                return 16;
+            } else {
+                return 12;
+            }
+        }
+
+        case 0xDB: // void
   
-        case 0xCE: //
+        case 0xDC: { // CALL C,u16
+            uint16_t word = this->fetchWord();
+            if (this->getC()) {
+                this->PUSH(this->PC);
+                this->PC = word;
+                return 24;
+            } else {
+                return 12;
+            }
+        }
+        case 0xDD: // void
+
+        case 0xDE: // SBC A,u8
+            return this->SBC(this->fetchByte()) + 4;
+
+        case 0xDF: // RST 18h
+            this->PUSH(this->PC);
+            this->PC = 0x0018;
+            return 16;
+
+        case 0xE0: { // LD (FF00+u8),A
+            uint8_t byte = this->fetchByte();
+            this->writeByte((0xFF00 + byte), this->A);
+            return 12;
+        }
+
+        case 0xE1: // POP HL
+            this->setHL(this->POP());
+            return 12;
+
+        case 0xE2: // LD (FF00+C),A
+            this->writeByte(0xFF00 + this->C, this->A);
+            return 8;
   
-        case 0xCF: //
+        case 0xE3: // void
   
-        case 0xD0: //
+        case 0xE4: // void
   
-        case 0xD1: //
+        case 0xE5: // PUSH HL
+            this->PUSH(this->getHL());
+            return 16;
   
-        case 0xD2: //
+        case 0xE6: // AND A,u8
+            return this->AND(this->fetchByte()) + 4;
   
-        case 0xD3: //
-  
-        case 0xD4: //
-  
-        case 0xD5: //
-  
-        case 0xD6: //
-  
-        case 0xD7: //
-  
-        case 0xD8: //
-  
-        case 0xD9: //
-  
-        case 0xDa: //
-  
-        case 0xDB: //
-  
-        case 0xDC: //
-  
-        case 0xDD: //
-  
-        case 0xDE: //
-  
-        case 0xDF: //
-  
-        case 0xE0: //
-  
-        case 0xE1: //
-  
-        case 0xE2: //
-  
-        case 0xE3: //
-  
-        case 0xE4: //
-  
-        case 0xE5: //
-  
-        case 0xE6: //
-  
-        case 0xE7: //
-  
+        case 0xE7: // RST 20h
+            this->PUSH(this->PC);
+            this->PC = 0x0020;
+            return 16;
+            
         case 0xE8: //
   
         case 0xE9: //
   
-        case 0xEa: //
+        case 0xEA: //
   
         case 0xEB: //
   
@@ -1163,7 +1303,7 @@ uint8_t CPU::execute(uint8_t opcode) {
   
         case 0xF9: //
   
-        case 0xFa: //
+        case 0xFA: //
   
         case 0xFB: //
   
@@ -1175,6 +1315,526 @@ uint8_t CPU::execute(uint8_t opcode) {
 
         default:
             return 0;
+    }
+}
+
+
+uint8_t CPU::executePrefix(uint8_t instr) {
+    switch (instr) {
+        case 0x00: //
+
+        case 0x01: //
+
+        case 0x02: //
+
+        case 0x03: //
+
+        case 0x04: //
+
+        case 0x05: //
+
+        case 0x06: //
+
+        case 0x07: //
+
+        case 0x08: //
+
+        case 0x09: //
+
+        case 0x0A: //
+
+        case 0x0B: //
+
+        case 0x0C: //
+
+        case 0x0D: //
+
+        case 0x0E: //
+
+        case 0x0F: //
+
+        case 0x10: //
+
+        case 0x11: //
+
+        case 0x12: //
+
+        case 0x13: //
+
+        case 0x14: //
+
+        case 0x15: //
+
+        case 0x16: //
+
+        case 0x17: //
+
+        case 0x18: //
+
+        case 0x19: //
+
+        case 0x1A: //
+
+        case 0x1B: //
+
+        case 0x1C: //
+
+        case 0x1D: //
+
+        case 0x1E: //
+
+        case 0x1F: //
+
+        case 0x20: //
+
+        case 0x21: //
+
+        case 0x22: //
+
+        case 0x23: //
+
+        case 0x24: //
+
+        case 0x25: //
+
+        case 0x26: //
+
+        case 0x27: //
+
+        case 0x28: //
+
+        case 0x29: //
+
+        case 0x2A: //
+
+        case 0x2B: //
+
+        case 0x2C: //
+
+        case 0x2D: //
+
+        case 0x2E: //
+
+        case 0x2F: //
+
+        case 0x30: //
+
+        case 0x31: //
+
+        case 0x32: //
+
+        case 0x33: //
+
+        case 0x34: //
+
+        case 0x35: //
+
+        case 0x36: //
+
+        case 0x37: //
+
+        case 0x38: //
+
+        case 0x39: //
+
+        case 0x3A: //
+
+        case 0x3B: //
+
+        case 0x3C: //
+
+        case 0x3D: //
+
+        case 0x3E: //
+
+        case 0x3F: //
+
+        case 0x40: //
+
+        case 0x41: //
+
+        case 0x42: //
+
+        case 0x43: //
+
+        case 0x44: //
+
+        case 0x45: //
+
+        case 0x46: //
+
+        case 0x47: //
+
+        case 0x48: //
+
+        case 0x49: //
+
+        case 0x4A: //
+
+        case 0x4B: //
+
+        case 0x4C: //
+
+        case 0x4D: //
+
+        case 0x4E: //
+
+        case 0x4F: //
+
+        case 0x50: //
+
+        case 0x51: //
+
+        case 0x52: //
+
+        case 0x53: //
+
+        case 0x54: //
+
+        case 0x55: //
+
+        case 0x56: //
+
+        case 0x57: //
+
+        case 0x58: //
+
+        case 0x59: //
+
+        case 0x5A: //
+
+        case 0x5B: //
+
+        case 0x5C: //
+
+        case 0x5D: //
+
+        case 0x5E: //
+
+        case 0x5F: //
+
+        case 0x60: //
+
+        case 0x61: //
+
+        case 0x62: //
+
+        case 0x63: //
+
+        case 0x64: //
+
+        case 0x65: //
+
+        case 0x66: //
+
+        case 0x67: //
+
+        case 0x68: //
+
+        case 0x69: //
+
+        case 0x6A: //
+
+        case 0x6B: //
+
+        case 0x6C: //
+
+        case 0x6D: //
+
+        case 0x6E: //
+
+        case 0x6F: //
+
+        case 0x70: //
+
+        case 0x71: //
+
+        case 0x72: //
+
+        case 0x73: //
+
+        case 0x74: //
+
+        case 0x75: //
+
+        case 0x76: //
+
+        case 0x77: //
+
+        case 0x78: //
+
+        case 0x79: //
+
+        case 0x7A: //
+
+        case 0x7B: //
+
+        case 0x7C: //
+
+        case 0x7D: //
+
+        case 0x7E: //
+
+        case 0x7F: //
+
+        case 0x80: //
+
+        case 0x81: //
+
+        case 0x82: //
+
+        case 0x83: //
+
+        case 0x84: //
+
+        case 0x85: //
+
+        case 0x86: //
+
+        case 0x87: //
+
+        case 0x88: //
+
+        case 0x89: //
+
+        case 0x8A: //
+
+        case 0x8B: //
+
+        case 0x8C: //
+
+        case 0x8D: //
+
+        case 0x8E: //
+
+        case 0x8F: //
+
+        case 0x90: //
+
+        case 0x91: //
+
+        case 0x92: //
+
+        case 0x93: //
+
+        case 0x94: //
+
+        case 0x95: //
+
+        case 0x96: //
+
+        case 0x97: //
+
+        case 0x98: //
+
+        case 0x99: //
+
+        case 0x9A: //
+
+        case 0x9B: //
+
+        case 0x9C: //
+
+        case 0x9D: //
+
+        case 0x9E: //
+
+        case 0x9F: //
+
+        case 0xA0: //
+
+        case 0xA1: //
+
+        case 0xA2: //
+
+        case 0xA3: //
+
+        case 0xA4: //
+
+        case 0xA5: //
+
+        case 0xA6: //
+
+        case 0xA7: //
+
+        case 0xA8: //
+
+        case 0xA9: //
+
+        case 0xAA: //
+
+        case 0xAB: //
+
+        case 0xAC: //
+
+        case 0xAD: //
+
+        case 0xAE: //
+
+        case 0xAF: //
+
+        case 0xB0: //
+
+        case 0xB1: //
+
+        case 0xB2: //
+
+        case 0xB3: //
+
+        case 0xB4: //
+
+        case 0xB5: //
+
+        case 0xB6: //
+
+        case 0xB7: //
+
+        case 0xB8: //
+
+        case 0xB9: //
+
+        case 0xBA: //
+
+        case 0xBB: //
+
+        case 0xBC: //
+
+        case 0xBD: //
+
+        case 0xBE: //
+
+        case 0xBF: //
+
+        case 0xC0: //
+
+        case 0xC1: //
+
+        case 0xC2: //
+
+        case 0xC3: //
+
+        case 0xC4: //
+
+        case 0xC5: //
+
+        case 0xC6: //
+
+        case 0xC7: //
+
+        case 0xC8: //
+
+        case 0xC9: //
+
+        case 0xCA: //
+
+        case 0xCB: //
+
+        case 0xCC: //
+
+        case 0xCD: //
+
+        case 0xCE: //
+
+        case 0xCF: //
+
+        case 0xD0: //
+
+        case 0xD1: //
+
+        case 0xD2: //
+
+        case 0xD3: //
+
+        case 0xD4: //
+
+        case 0xD5: //
+
+        case 0xD6: //
+
+        case 0xD7: //
+
+        case 0xD8: //
+
+        case 0xD9: //
+
+        case 0xDA: //
+
+        case 0xDB: //
+
+        case 0xDC: //
+
+        case 0xDD: //
+
+        case 0xDE: //
+
+        case 0xDF: //
+
+        case 0xE0: //
+
+        case 0xE1: //
+
+        case 0xE2: //
+
+        case 0xE3: //
+
+        case 0xE4: //
+
+        case 0xE5: //
+
+        case 0xE6: //
+
+        case 0xE7: //
+
+        case 0xE8: //
+
+        case 0xE9: //
+
+        case 0xEA: //
+
+        case 0xEB: //
+
+        case 0xEC: //
+
+        case 0xED: //
+
+        case 0xEE: //
+
+        case 0xEF: //
+
+        case 0xF0: //
+
+        case 0xF1: //
+
+        case 0xF2: //
+
+        case 0xF3: //
+
+        case 0xF4: //
+
+        case 0xF5: //
+
+        case 0xF6: //
+
+        case 0xF7: //
+
+        case 0xF8: //
+
+        case 0xF9: //
+
+        case 0xFA: //
+
+        case 0xFB: //
+
+        case 0xFC: //
+
+        case 0xFD: //
+
+        case 0xFE: //
+
+        case 0xFF: //
+
+        default:
+        return 0;
     }
 }
 
@@ -1251,4 +1911,18 @@ uint8_t CPU::CP(uint8_t reg) {
     this->setZ(this->A == reg);
     this->setN(true);
     return 4;
+}
+
+void CPU::PUSH(uint16_t reg) {
+    uint8_t lower = static_cast<uint8_t>(reg & 0x00FF);
+    uint8_t upper = static_cast<uint8_t>((reg >> 8) & 0x00FF);
+    this->writeByte(--this->SP, upper);
+    this->writeByte(--this->SP, lower);
+    return;
+}
+
+uint16_t CPU::POP() {
+    uint8_t lower = this->bus.read(this->SP++);
+    uint8_t upper = this->bus.read(this->SP++);
+    return static_cast<uint16_t>(upper << 8 | lower);
 }
