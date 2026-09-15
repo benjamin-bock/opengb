@@ -859,7 +859,7 @@ uint8_t CPU::execute(uint8_t instr) {
  
         case 0x86: { // ADD A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->ADD(data);
+            return this->ADD(data) + 4;
         }
 
         case 0x87: // ADD A,A
@@ -885,7 +885,7 @@ uint8_t CPU::execute(uint8_t instr) {
   
         case 0x8E: { // ADC A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->ADC(data);
+            return this->ADC(data) + 4;
         }
 
         case 0x8F: // ADC A,A
@@ -911,7 +911,7 @@ uint8_t CPU::execute(uint8_t instr) {
  
         case 0x96: { // SUB A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->SUB(data);
+            return this->SUB(data) + 4;
         }
 
         case 0x97: // SUB A,A
@@ -937,7 +937,7 @@ uint8_t CPU::execute(uint8_t instr) {
   
         case 0x9E: { // SBC A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->SBC(data);
+            return this->SBC(data) + 4;
         }
 
         case 0x9F: // SBC A,A
@@ -963,7 +963,7 @@ uint8_t CPU::execute(uint8_t instr) {
   
         case 0xA6: { // AND A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->AND(data);
+            return this->AND(data) + 4;
         }
   
         case 0xA7: // AND A,A
@@ -989,7 +989,7 @@ uint8_t CPU::execute(uint8_t instr) {
   
         case 0xAE: { // XOR A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->XOR(data);
+            return this->XOR(data) + 4;
         }
   
         case 0xAF: // XOR A,A
@@ -1015,7 +1015,7 @@ uint8_t CPU::execute(uint8_t instr) {
   
         case 0xB6: { // OR A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->OR(data);
+            return this->OR(data) + 4;
         }
   
         case 0xB7: // OR A,A
@@ -1041,7 +1041,7 @@ uint8_t CPU::execute(uint8_t instr) {
   
         case 0xBE: { // CP A,(HL)
             uint8_t data = this->bus.read(this->getHL());
-            return this->CP(data);
+            return this->CP(data) + 4;
         }
   
         case 0xBF: // CP A,A
@@ -1267,51 +1267,111 @@ uint8_t CPU::execute(uint8_t instr) {
             this->PC = 0x0020;
             return 16;
             
-        case 0xE8: //
+        case 0xE8: { // ADD SP,i8
+            // get 8-bit signed integer i8
+            int8_t byte = static_cast<int8_t>(this->fetchByte());
+            this->SP += static_cast<int16_t>(byte);
+            this->setZ(false);
+            this->setN(false);  
+            this->setH((this->SP & 0x0FFF) + (byte & 0x0FFF) > 0x0FFF);
+            this->setC(this->SP + byte > 0xFFFF);
+            return 16;
+        }
+
+        case 0xE9: // JP HL
+            this->PC = this->getHL();
+            return 4;
   
-        case 0xE9: //
+        case 0xEA: { // LD (u16),A
+            uint16_t word = this->fetchWord();
+            this->writeByte(word, this->A);
+            return 16;
+        }
+
+        case 0xEB: // void
   
-        case 0xEA: //
+        case 0xEC: // void
   
-        case 0xEB: //
+        case 0xED: // void
   
-        case 0xEC: //
+        case 0xEE: // XOR A,u8
+            return this->XOR(this->fetchByte()) + 4;
+            
+        case 0xEF: // RST 28h
+            this->PUSH(this->PC);
+            this->PC = 0x0028;
+            return 16;
+            
+        case 0xF0: { // LD A,(FF00+u8)
+            uint8_t byte = this->fetchByte();
+            uint8_t val = this->bus.read(0xFF00 + byte);
+            this->A = val;
+            return 12;
+        }
   
-        case 0xED: //
+        case 0xF1: // POP AF
+            this->setAF(this->POP() & 0xFFF0); // lowest nibble of F is only zeros
+            return 12;
+
+        case 0xF2: { // LD A,(FF00+C)
+            uint8_t val = this->bus.read(0xFF00 + this->C);
+            this->A = val;
+            return 12;
+        }
   
-        case 0xEE: //
+        case 0xF3: // DI
+            this->IME = false;
+            return 4;
   
-        case 0xEF: //
+        case 0xF4: // void
   
-        case 0xF0: //
+        case 0xF5: // PUSH AF
+            this->PUSH(this->getAF() & 0xFFF0); // lowest nibble of F is only zeros
+            return 16;
   
-        case 0xF1: //
+        case 0xF6: // OR A,u8
+            return this->OR(this->fetchByte()) + 4;
   
-        case 0xF2: //
+        case 0xF7: // RST 30h
+            this->PUSH(this->PC);
+            this->PC = 0x0030;
+            return 16;
   
-        case 0xF3: //
+        case 0xF8: { // LD HL,SP+i8
+            int8_t byte = static_cast<int8_t>(this->fetchByte());
+            this->setHL(this->SP + byte);
+            this->setZ(false);
+            this->setN(false);  
+            this->setH((this->SP & 0x0FFF) + (byte & 0x0FFF) > 0x0FFF);
+            this->setC(this->SP + byte > 0xFFFF);
+            return 12;
+        }
+
+        case 0xF9: // LD SP,HL
+            this->SP = this->getHL();
+            return 8;
   
-        case 0xF4: //
+        case 0xFA: { // LD A,(u16)
+            uint16_t word = this->fetchWord();
+            this->A = word;
+            return 16;
+        }
+
+        case 0xFB: // EI
+            this->IME = true;
+            return 4;
   
-        case 0xF5: //
+        case 0xFC: // void
   
-        case 0xF6: //
+        case 0xFD: // void
   
-        case 0xF7: //
-  
-        case 0xF8: //
-  
-        case 0xF9: //
-  
-        case 0xFA: //
-  
-        case 0xFB: //
-  
-        case 0xFC: //
-  
-        case 0xFD: //
-  
-        case 0xFE: //  
+        case 0xFE: // CP A,u8
+            return this->CP(this->fetchByte()) + 4;
+        
+        case 0xFF: // RST 38h
+            this->PUSH(this->PC);
+            this->PC = 0x0038;
+            return 16;
 
         default:
             return 0;
