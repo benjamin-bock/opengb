@@ -16,6 +16,8 @@ class CPU {
         bool IME = false;
         // 8-bit register
         uint8_t A, F, B, C, D, E, H, L;
+        uint8_t getReg(uint8_t index);
+        void setReg(uint8_t index, uint8_t data);
 
         // 16-bit register getter
         uint16_t getAF();
