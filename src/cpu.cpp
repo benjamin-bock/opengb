@@ -166,7 +166,7 @@ uint8_t CPU::execute(uint8_t instr) {
             return 4;
 
         case 0x05: // DEC B
-            this->setH((this->B & 0x0F) == 0x0F);
+            this->setH((this->B & 0x0F) == 0x00);
             this->B--;
             this->setZ(this->B == 0);
             this->setN(true);
@@ -176,20 +176,21 @@ uint8_t CPU::execute(uint8_t instr) {
             this->B = this->fetchByte();
             return 8;
 
-        case 0x07: // RLCA
-            this->setC(static_cast<bool>((0x80 & this->A) >> 8)); // set A_7 to C flag
-            this->A <<= 1; // left bit shift
-            if (this->getC()) {
-                this->A |= 0x01; // set A_0 to 1
-            }
+        case 0x07: { // RLCA
+            bool bit7 = (this->A & 0x80) != 0;
+            this->A = (this->A << 1) | (bit7 ? 1 : 0); // left bit shift and copy bit7 into bit0
+            this->setC(bit7); // set A_7 to C flag
             this->setZ(false);
             this->setH(false);
             this->setN(false);
             return 4;
-        
-        case 0x08: // LD (u16),SP
-            this->writeWord(this->fetchWord(), this->SP);
+        }
+
+        case 0x08: { // LD (u16),SP
+            uint16_t word = this->fetchWord();
+            this->writeWord(word, this->SP);
             return 20;  
+        }
 
         case 0x09: {// ADD HL,BC
             uint16_t hl = getHL();
@@ -495,9 +496,10 @@ uint8_t CPU::execute(uint8_t instr) {
         
         case 0x34: { // INC (HL)
             uint16_t hl = this->getHL();
-            uint16_t data = this->bus.read(hl);
+            uint8_t data = this->bus.read(hl);
 
-            this->setH((data++ & 0x0F) == 0x0F);
+            this->setH((data & 0x0F) == 0x0F);
+            data++;
             this->writeByte(hl, data);
             this->setZ(data == 0);
             this->setN(false);
@@ -505,12 +507,13 @@ uint8_t CPU::execute(uint8_t instr) {
         }
         case 0x35: { // DEC (HL)
             uint16_t hl = this->getHL();
-            uint16_t data = this->bus.read(hl);
+            uint8_t data = this->bus.read(hl);
 
-            this->setH((data-- & 0x0F) == 0x00);
+            this->setH((data & 0x0F) == 0x00);
+            data--;
             this->writeByte(hl, data);
             this->setZ(data == 0);
-            this->setN(false);
+            this->setN(true);
             return 12;
         }
 
@@ -1184,7 +1187,7 @@ uint8_t CPU::execute(uint8_t instr) {
             this->PUSH(this->getDE());
             return 16;
   
-        case 0xD6: // ADD A,u8
+        case 0xD6: // SUB A,u8
             return this->SUB(this->fetchByte()) + 4;
 
         case 0xD7: // RST 10h
@@ -1268,13 +1271,16 @@ uint8_t CPU::execute(uint8_t instr) {
             return 16;
             
         case 0xE8: { // ADD SP,i8
+            uint8_t rawByte = this->fetchByte();
             // get 8-bit signed integer i8
-            int8_t byte = static_cast<int8_t>(this->fetchByte());
-            this->SP += static_cast<int16_t>(byte);
+            int8_t byte = static_cast<int8_t>(rawByte);
+
             this->setZ(false);
             this->setN(false);  
-            this->setH((this->SP & 0x0FFF) + (byte & 0x0FFF) > 0x0FFF);
-            this->setC(this->SP + byte > 0xFFFF);
+            this->setH((this->SP & 0x0F) + (rawByte & 0x0F) > 0x0F);
+            this->setC((this->SP & 0xFF) + rawByte > 0xFF);
+
+            this->SP += static_cast<int16_t>(byte);
             return 16;
         }
 
@@ -1338,12 +1344,15 @@ uint8_t CPU::execute(uint8_t instr) {
             return 16;
   
         case 0xF8: { // LD HL,SP+i8
-            int8_t byte = static_cast<int8_t>(this->fetchByte());
-            this->setHL(this->SP + byte);
+            uint8_t rawByte = this->fetchByte();
+            int8_t byte = static_cast<int8_t>(rawByte);
+
             this->setZ(false);
             this->setN(false);  
-            this->setH((this->SP & 0x0FFF) + (byte & 0x0FFF) > 0x0FFF);
-            this->setC(this->SP + byte > 0xFFFF);
+            this->setH((this->SP & 0x000F) + (rawByte & 0x0F) > 0x0F);
+            this->setC((this->SP & 0x00FF) + byte > 0xFF);
+
+            this->setHL(this->SP + byte);
             return 12;
         }
 
@@ -1353,7 +1362,7 @@ uint8_t CPU::execute(uint8_t instr) {
   
         case 0xFA: { // LD A,(u16)
             uint16_t word = this->fetchWord();
-            this->A = word;
+            this->A = this->bus.read(word);
             return 16;
         }
 
