@@ -1,7 +1,4 @@
 #include "../include/cpu.hpp"
-#include <algorithm>
-#include <cstdint>
-#include <sys/types.h>
 
 CPU::CPU(Bus& bus) : bus(bus){
     A = 0x01; // hardware checks wich console is running (GB, GBC, GBA, etc.)

@@ -14,7 +14,7 @@ Bus::Bus(Cartridge& cart) : cart(cart) {
     this->interruptFlag = 0x00;
 }
         
-bool Bus::isAddressValid(uint16_t addr) {
+bool Bus::isAddressValid(uint16_t addr) const {
     // Validate against Game Boy address ranges:
     // - $0000-$3FFF (ROM bank 0)
     // - $4000-$7FFF (ROM bank 1-n)
@@ -31,7 +31,7 @@ bool Bus::isAddressValid(uint16_t addr) {
 
     return (addr <= 0xDFFF || 
            (addr >= 0xFE00 && addr <= 0xFE9F) ||
-           (addr >= 0xFF00 && addr <= 0xFFFF))
+           (addr >= 0xFF00 && addr <= 0xFFFF));
 };
 
 uint8_t Bus::read(uint16_t addr) const {

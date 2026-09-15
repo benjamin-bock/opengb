@@ -22,7 +22,7 @@ class Bus {
     private:
         Cartridge& cart;
 
-        bool isAddressValid(uint16_t addr);
+        bool isAddressValid(uint16_t addr) const;
 
         std::array<uint8_t, VRAM_SIZE> vram;
         std::array<uint8_t, WRAM_SIZE> wram0;
