@@ -136,45 +136,38 @@ void Bus::write(uint16_t addr, uint8_t data) {
 
 uint8_t Bus::readIO(uint16_t addr) const {
     if (addr == 0xFF00) {
-        return this->joypad.read();
+        // Joypad (not yet implemented)
+        return 0xFF;
     }
     else if (addr == 0xFF01 || addr == 0xFF02) {
         return this->serial.read(addr);
     }
     else if (addr >= 0xFF04 && addr <= 0xFF07) {
-        return this->timer.read(addr);
+        // Timer (not yet implemented)
+        return 0x00;
     }
     else if (addr == 0xFF0F) {
         return this->interruptFlag;
     }
     else if (addr >= 0xFF10 && addr <= 0xFF3F) {
-        return this->apu.read(addr);
+        // APU (not yet implemented)
+        return 0x00;
     }
     else if (addr == 0xFF46) {
         return this->dmaRegister;
     }
     else if (addr >= 0xFF40 && addr <= 0xFF4B) {
-        return this->ppu.read(addr);
+        // PPU (not yet implemented)
+        return 0x00;
     }
     else {
         return 0xFF; // Unmapped address
     }
-    /* Ignore the rest of the IO ports 
-    ⚬	$FF50 (Boot ROM is readonly)   
-    ⚬	$FF4C-$FF4D (KEY0/KEY1 - Vitesse CPU CGB)
-    ⚬	$FF4F (VRAM Bank CGB)
-    ⚬	$FF51-$FF55 (HDMA CGB)
-    ⚬	$FF56 (Infrarouge)
-    ⚬	$FF68-$FF6B (Palettes couleur CGB)
-    ⚬	$FF6C (Priorité des sprites CGB)
-    ⚬	$FF70 (WRAM Bank CGB)
-    because they are only for CGB mode
-    */
 }
 
 void Bus::writeIO(uint16_t addr, uint8_t data) {
     if (addr == 0xFF00) {
-        this->joypad.write(data);
+        // Joypad (not yet implemented)
         return;
     }
     else if (addr == 0xFF01 || addr == 0xFF02) {
@@ -182,7 +175,7 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
         return;
     }
     else if (addr >= 0xFF04 && addr <= 0xFF07) {
-        this->timer.write(addr, data);
+        // Timer (not yet implemented)
         return;
     }
     else if (addr == 0xFF0F) {
@@ -190,7 +183,7 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
         return;
     }
     else if (addr >= 0xFF10 && addr <= 0xFF3F) {
-        this->apu.write(addr, data);
+        // APU (not yet implemented)
         return;
     }
     else if (addr == 0xFF46) {
@@ -199,7 +192,7 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
         return;
     }
     else if (addr >= 0xFF40 && addr <= 0xFF4B) {
-        this->ppu.write(addr, data);
+        // PPU (not yet implemented)
         return;
     }
     /* Ignore the rest of the IO ports 
@@ -213,4 +206,11 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
     ⚬	$FF70 (WRAM Bank CGB)
     because they are only for CGB mode
     */
+}
+
+void Bus::dmaTransfer(uint8_t source_prefix) {
+    uint16_t baseAddr = static_cast<uint16_t>(source_prefix) << 8;
+    for (uint16_t i = 0; i < 160; i++) {
+        this->write(0xFE00 + i, this->read(baseAddr + i));
+    }
 }

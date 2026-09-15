@@ -4,6 +4,7 @@
 #include <array>
 
 #include "cartridge.hpp"
+#include "serial.hpp"
 
 constexpr size_t ADDRESS_BUS_SIZE = 64 * 1024; // 64 KiB memory table
 constexpr size_t VRAM_SIZE = 8 * 1024; // 8 KiB VRAM
@@ -21,6 +22,7 @@ class Bus {
 
     private:
         Cartridge& cart;
+        Serial serial;
 
         bool isAddressValid(uint16_t addr) const;
 

@@ -1,4 +1,6 @@
 #include "../include/cartridge.hpp"
+#include <fstream>
+#include <stdexcept>
 
 static constexpr std::array<uint8_t, 48> NINTENDO_LOGO_REF = {
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
@@ -10,10 +12,6 @@ Cartridge::Cartridge(const std::string& filepath) {
     this->filepath = filepath;
 }
 
-Cartridge::~Cartridge() {
-    // close the file
-    fclose(this->file);
-}
 void Cartridge::load() {
     // load the cartridge from the file
 
