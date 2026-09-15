@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <array>
 #include <cstdint>
 #include <string>
 
@@ -31,4 +32,5 @@ class Cartridge {
     private:
         std::string filepath;
         std::vector<uint8_t> data;
+        std::array<uint8_t, 8192> ram;
 };

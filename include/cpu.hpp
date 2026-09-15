@@ -9,15 +9,9 @@
 class CPU {
     public:
         CPU(Bus& bus);
-        
-        // CPU methods
+
         uint8_t step();
-        uint8_t fetchByte();
-        uint16_t fetchWord();
-        void writeByte(uint16_t addr, uint8_t byte);
-        void writeWord(uint16_t addr, uint16_t word);
-        uint8_t execute(uint8_t opcode);
-        uint8_t executePrefix(uint8_t opcode);
+        
     private:
         Bus& bus;
 
@@ -55,7 +49,14 @@ class CPU {
         // 16-bit register
         uint16_t SP, PC; // stack pointer, program counter
 
-
+        // CPU methods
+        uint8_t fetchByte();
+        uint16_t fetchWord();
+        void writeByte(uint16_t addr, uint8_t byte);
+        void writeWord(uint16_t addr, uint16_t word);
+        uint8_t execute(uint8_t opcode);
+        uint8_t executePrefix(uint8_t opcode);
+        
         // CPU instructions helper
         // Arithmetic operations
         uint8_t ADD(uint8_t reg); // comparison are always between the accumulator and the register

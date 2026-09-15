@@ -143,7 +143,10 @@ uint8_t Bus::readIO(uint16_t addr) const {
         return this->serial.read(addr);
     }
     else if (addr >= 0xFF04 && addr <= 0xFF07) {
-        // Timer (not yet implemented)
+        if (addr == 0xFF04) {
+            static uint8_t divCounter = 0;
+            return divCounter++;
+        }
         return 0x00;
     }
     else if (addr == 0xFF0F) {
@@ -157,7 +160,9 @@ uint8_t Bus::readIO(uint16_t addr) const {
         return this->dmaRegister;
     }
     else if (addr >= 0xFF40 && addr <= 0xFF4B) {
-        // PPU (not yet implemented)
+        if (addr == 0xFF44) {
+            return 0x90; // Fake VBlank (Scanline 144) so ROM wait loops don't hang!
+        }
         return 0x00;
     }
     else {

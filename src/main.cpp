@@ -26,9 +26,8 @@ int main(int argc, char* argv[]) {
     std::cout << "Starting the emulator..." << std::endl;
 
     // Loop execution
-    while (true) {
-        uint8_t opcode = cpu.fetchByte();
-        cpu.execute(opcode);
+    for (;;) {
+        cpu.step();
     }
 
     return 0;

@@ -143,7 +143,9 @@ bool CPU::getC() {
 }
 
 uint8_t CPU::step() {
-    return 0;
+    uint8_t opcode = this->fetchByte();
+    this->execute(opcode);
+    return 4;
 }
 
 uint8_t CPU::fetchByte() {
@@ -1413,6 +1415,7 @@ uint8_t CPU::execute(uint8_t instr) {
             return 16;
 
         default:
+            std::cout << "Unhandled opcode: 0x" << std::hex << static_cast<int>(instr) << " at PC=0x" << (this->PC - 1) << std::dec << std::endl;
             return 0;
     }
 }

@@ -1,5 +1,6 @@
 #include "../include/cartridge.hpp"
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 
 static constexpr std::array<uint8_t, 48> NINTENDO_LOGO_REF = {
@@ -10,6 +11,7 @@ static constexpr std::array<uint8_t, 48> NINTENDO_LOGO_REF = {
 
 Cartridge::Cartridge(const std::string& filepath) {
     this->filepath = filepath;
+    this->ram.fill(0x00);
 }
 
 void Cartridge::load() {
@@ -168,14 +170,11 @@ bool Cartridge::globalChecksum() {
 
 uint8_t Cartridge::read(uint16_t addr) const {
     // read a byte from the cartridge
-    if (addr >= this->data.size()) {
-        return 0xFF;
-    }
-    if (addr < 0x8000) {
+    if (addr < 0x8000 && addr < this->data.size()) {
         return this->data[addr];
     }
     else if (addr >= 0xA000 && addr <= 0xBFFF) {
-        return 0xFF; // RAM is not implemented yet
+        return this->ram[addr - 0xA000];
     }
     else {
         return 0xFF; // Unmapped address
@@ -184,14 +183,19 @@ uint8_t Cartridge::read(uint16_t addr) const {
 
 void Cartridge::write(uint16_t addr, uint8_t data) {
     // write a byte to the cartridge
-    if (addr >= this->data.size()) {
-        return;
-    }
     if (addr < 0x8000) {
         return; // ROM is read only
     }
     else if (addr >= 0xA000 && addr <= 0xBFFF) {
-        return; // RAM is not implemented yet
+        this->ram[addr - 0xA000] = data;
+        if (addr == 0xA000) {
+            if (data == 0x00) {
+                std::cout << "\n\n=====> RESULT: PASSED! <=====\n" << std::endl;
+            } else if (data != 0x80) {
+                std::cout << "\n\n=====> RESULT: FAILED #" << static_cast<int>(data) << " <=====\n" << std::endl;
+            }
+        }
+        return;
     }
     else {
         return; // Unmapped address
