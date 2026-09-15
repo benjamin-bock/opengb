@@ -1430,6 +1430,7 @@ uint8_t CPU::executePrefix(uint8_t instr) {
 
     uint8_t data = this->getReg(reg);
 
+    // Compute new registers and update flags
     switch (group) {
         case 0: { // SHIFT
             uint8_t res = 0;
@@ -1467,18 +1468,59 @@ uint8_t CPU::executePrefix(uint8_t instr) {
                     break;
 
                 case 6: // SWAP
+                    carry = false;
+                    res = (data >> 4) | (data << 4);
+                    break;
+
                 case 7: // SRL
+                    carry = (data & 0x01) != 0;
+                    res = data >> 1;
+                    break;
 
                 default:
                     break;
             }
+            this->setZ(res == 0);
+            this->setN(false);
+            this->setH(false);
+            this->setC(carry);
+
+            this->setReg(reg, res);
+            break;
         }
-        case 1: // BIT
-        case 2: // RES
-        case 3: // SET
+        case 1: // BIT b,r
+            this->setZ((data & (1 << bit)) == 0);
+            this->setN(false);
+            this->setH(true);
+            break;
+
+        case 2: { // RES b,r
+            uint8_t newData = data & ~(1 << bit);
+            this->setReg(reg, newData);
+            break;
+        }
+        
+        case 3: { // SET b,r
+            uint8_t newData = data | (1 << bit);
+            this->setReg(reg, newData);
+            break;
+        }
 
         default:
             break;
+    }
+
+    // Return clock cycles
+    if (reg == 6) { // reg = (HL)
+        if (group == 1) {
+            return 12;
+        } 
+        else {
+            return 16;
+        }
+    } 
+    else {
+        return 8; // reg = B,C,D,E,H,L,A
     }
 }
 
