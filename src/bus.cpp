@@ -1,6 +1,7 @@
 #include "../include/bus.hpp"
 
 #include "../include/cartridge.hpp"
+#include "../include/serial.hpp"
 
 
 Bus::Bus(Cartridge& cart) : cart(cart) {
