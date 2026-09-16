@@ -45,7 +45,6 @@ void CPU::setReg(uint8_t index, uint8_t data) {
     }
 }
 
-
 uint16_t CPU::getAF() {
     return (A << 8) | F;
 }
@@ -143,9 +142,29 @@ bool CPU::getC() {
 }
 
 uint8_t CPU::step() {
+    uint8_t cycles = 0;
+
+    // Check and handle any pending interrupts
+    cycles +=this->handleInterrupts(); 
+
+    if (this->isHalted) {
+        // If the CPU is halted, we skip the instruction fetch and execution
+        return;
+    }
+
+    // Fetch the next instruction and execute it
     uint8_t opcode = this->fetchByte();
-    this->execute(opcode);
-    return 4;
+    cycles += this->execute(opcode);
+    
+    // Handle the EI delay if it's active
+    if (this->eiDelay > 0) {
+        this->eiDelay--;
+        if (this->eiDelay == 0) {
+            this->IME = true; // Enable interrupts after the delay
+        }
+    }
+
+    return cycles;
 }
 
 uint8_t CPU::fetchByte() {
@@ -839,6 +858,7 @@ uint8_t CPU::execute(uint8_t instr) {
   
         case 0x76: // HALT
             // stops the execution of the program without changing the clock frequency
+            this->isHalted = true;
             return 4;
   
         case 0x77: // LD (HL),A
@@ -1362,6 +1382,7 @@ uint8_t CPU::execute(uint8_t instr) {
   
         case 0xF3: // DI
             this->IME = false;
+            this->eiDelay = 0; // disable interrupts immediately
             return 4;
   
         case 0xF4: // void
@@ -1402,7 +1423,7 @@ uint8_t CPU::execute(uint8_t instr) {
         }
 
         case 0xFB: // EI
-            this->IME = true;
+            this->eiDelay = 2; // enable interrupts after 2 cycles;
             return 4;
   
         case 0xFC: // void
@@ -1525,6 +1546,37 @@ uint8_t CPU::executePrefix(uint8_t instr) {
     else {
         return 8; // reg = B,C,D,E,H,L,A
     }
+}
+
+void CPU::handleInterrupts() {
+    uint8_t IE = this->bus.read(0xFFFF); // Interrupt Enable Register
+    uint8_t IF = this->bus.read(0xFF0F); // Interrupt
+    uint8_t pendingInterrupts = IE & IF & 0x1F; // Only consider the lower 5 bits
+
+    if (!pendingInterrupts) {
+        return; // No interrupts to handle
+    }
+
+    if (this->isHalted) {
+        this->isHalted = false; // Exit halt state if an interrupt is pending
+    }
+
+    if (!this->IME) {
+        return; // Interrupts are disabled
+    }
+
+    this->IME = false; // Disable further interrupts
+
+    for (size_t i = 0; i < 5; i++)
+    {
+        if (pendingInterrupts & (1 << i)) {
+            this->bus.write(0xFF0F, IF & ~(1 << i)); // Clear the interrupt flag
+            this->PUSH(this->PC); // Save current PC
+            this->PC = 0x0040 + (i * 8); // Jump to interrupt vector
+            break; // Handle only one interrupt at a time
+        }
+    }
+    
 }
 
 uint8_t CPU::ADD(uint8_t reg) {
