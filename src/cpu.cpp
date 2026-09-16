@@ -424,7 +424,7 @@ uint8_t CPU::execute(uint8_t instr) {
                 }
                 
                 // upper nibble
-                if (this->getC() || this->A > 0x9F) {
+                if (this->getC() || this->A > 0x99) {
                     a += 0x60;
                     this->setC(true);
                 }
