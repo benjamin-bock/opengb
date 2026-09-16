@@ -1,6 +1,19 @@
+# Detect the operating system
+UNAME_S := $(shell uname -s)
+
+# Choose the default compiler based on the operating system
+ifeq ($(UNAME_S),Darwin)
+    # macOS use clang++ by default
+    CXX ?= clang++
+else
+    # Linux / WSL use g++ by default
+    CXX ?= g++
+endif
+
 # Compiler and Flags
-CXX      := clang++
-CXXFLAGS := -std=c++23 -Wall -Wextra -O2 -Iinclude -MMD -MP
+
+CXXFLAGS ?= -Wall -Wextra -std=c++23 -O2
+LDFLAGS  ?=
 
 # Directories
 SRC_DIR  := src

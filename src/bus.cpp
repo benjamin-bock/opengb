@@ -32,7 +32,7 @@ bool Bus::isAddressValid(uint16_t addr) const {
 
     return (addr <= 0xDFFF || 
            (addr >= 0xFE00 && addr <= 0xFE9F) ||
-           (addr >= 0xFF00 && addr <= 0xFFFF));
+           (addr >= 0xFF00));
 };
 
 uint8_t Bus::read(uint16_t addr) const {
@@ -40,7 +40,7 @@ uint8_t Bus::read(uint16_t addr) const {
         return 0xFF;
 
     // ROM bank 0
-    if ((addr >= 0x0000 && addr <= 0x7FFF) || (addr >= 0xA000 && addr <= 0xBFFF)) {
+    if (addr <= 0x7FFF || (addr >= 0xA000 && addr <= 0xBFFF)) {
         return this->cart.read(addr);
     }
     // ROM bank 1-n
@@ -85,7 +85,7 @@ void Bus::write(uint16_t addr, uint8_t data) {
         return;
 
     // ROM bank 0
-    if ((addr >= 0x0000 && addr <= 0x7FFF) || (addr >= 0xA000 && addr <= 0xBFFF)) {
+    if (addr <= 0x7FFF || (addr >= 0xA000 && addr <= 0xBFFF)) {
         return this->cart.write(addr, data);
     }
     // ROM bank 1-n

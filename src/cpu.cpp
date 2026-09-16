@@ -31,14 +31,14 @@ uint8_t CPU::getReg(uint8_t index) {
 
 void CPU::setReg(uint8_t index, uint8_t data) {
     switch (index) {
-        case 0: this->B = data;
-        case 1: this->C = data ;
-        case 2: this->D = data ;
-        case 3: this->E = data ;
-        case 4: this->H = data ;
-        case 5: this->L = data ;
-        case 6: this->bus.write(this->getHL(), data);
-        case 7: this->A = data ;
+        case 0: this->B = data; break;
+        case 1: this->C = data; break;
+        case 2: this->D = data; break;
+        case 3: this->E = data; break;
+        case 4: this->H = data; break;
+        case 5: this->L = data; break;
+        case 6: this->bus.write(this->getHL(), data); break;
+        case 7: this->A = data; break;
 
         default:
             return;
@@ -64,7 +64,7 @@ uint16_t CPU::getHL() {
 
 void CPU::setAF(uint16_t value) {
     this->A = static_cast<uint8_t>(value >> 8); // get the most significant byte
-    this->F = static_cast<uint8_t>(value & 0x00FF); // get the least significant byte
+    this->F = static_cast<uint8_t>(value & 0x00F0); // get the least significant byte and force the last 4 bits to 0
     return;
 }
 
@@ -415,32 +415,35 @@ uint8_t CPU::execute(uint8_t instr) {
             return 8;
 
         case 0x27: { // DAA (Decimal Adjust Accumulator)
-            uint8_t adjust = 0;
-            bool carry = this->getC();
-            bool substract = this->getN();
+            int a = this->A;
 
-            // lower nibble
-            if (this->getH() || (!substract && ( (this->A & 0x0F) > 0x09) )) {
-                adjust |= 0x06;
+            if (!this->getN()) { // addition
+                // lower nibble
+                if (this->getH() || (a & 0x0F) > 0x09) {
+                    a += 0x06;
+                }
+                
+                // upper nibble
+                if (this->getC() || this->A > 0x9F) {
+                    a += 0x60;
+                    this->setC(true);
+                }
             }
-
-            // upper nibble
-            if (carry || (!substract && (this->A > 0x99) )) {
-                adjust |= 0x60;
-                carry = true;
+            else { // substraction
+                // lower nibble
+                if (this->getH()) {
+                    a -= 0x06;
+                }
+    
+                // upper nibble
+                if (this->getC()) {
+                    a -= 0x60;
+                }
             }
-
-            // apply the adjustement, + or - depending on N
-            if (substract) { 
-                this->A -= adjust;
-            }
-            else {
-                this->A += adjust;
-            }
-
-            setH(false);
-            setZ(this->A == 0);
-            setC(carry);
+            
+            this->setH(false);
+            this->A = static_cast<uint8_t>(a & 0xFF);
+            this->setZ(this->A == 0);
             return 4;
         }
         
@@ -1348,7 +1351,7 @@ uint8_t CPU::execute(uint8_t instr) {
         }
   
         case 0xF1: // POP AF
-            this->setAF(this->POP() & 0xFFF0); // lowest nibble of F is only zeros
+            this->setAF(this->POP()); // lowest nibble of F is only zeros
             return 12;
 
         case 0xF2: { // LD A,(FF00+C)
