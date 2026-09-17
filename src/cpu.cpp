@@ -1260,7 +1260,7 @@ uint8_t CPU::execute(uint8_t instr) {
 
         case 0xD9: // RETI
             this->PC = this->POP();
-            this->IME = true;
+            this->eiDelay = 2; // enable interrupts after 2 cycles;
             return 16;            
   
         case 0xDA: { // JP C,u16

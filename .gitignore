@@ -15,3 +15,4 @@ build/
 tools/
 .*.md
 *.log
+*.txt
