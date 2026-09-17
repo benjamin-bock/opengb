@@ -14,4 +14,4 @@
 build/
 tools/
 .*.md
-
+*.log

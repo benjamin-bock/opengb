@@ -145,11 +145,11 @@ uint8_t CPU::step() {
     uint8_t cycles = 0;
 
     // Check and handle any pending interrupts
-    cycles +=this->handleInterrupts(); 
+    cycles += this->handleInterrupts(); 
 
     if (this->isHalted) {
         // If the CPU is halted, we skip the instruction fetch and execution
-        return;
+        return 4;
     }
 
     // Fetch the next instruction and execute it
@@ -185,7 +185,7 @@ void CPU::writeByte(uint16_t addr, uint8_t byte) {
 
 void CPU::writeWord(uint16_t addr, uint16_t word) {
     uint8_t lower = static_cast<uint8_t>(word & 0x00FF);
-    uint8_t upper = static_cast<uint8_t>(word & 0xFF00) >> 8;
+    uint8_t upper = static_cast<uint8_t>((word >> 8) & 0x00FF);
     this->writeByte(addr, lower);
     this->writeByte(addr + 1, upper);
     return;
@@ -391,7 +391,7 @@ uint8_t CPU::execute(uint8_t instr) {
 
         case 0x20: { // JR NZ,i8
             int8_t offset = static_cast<int8_t>(this->fetchByte());
-            if (!getZ()) { // Z is false, jump
+            if (!this->getZ()) { // Z is false, jump
                 this->PC += offset;
                 return 12;
             }
@@ -468,7 +468,7 @@ uint8_t CPU::execute(uint8_t instr) {
         
         case 0x28: { // JR Z,i8
             int8_t offset = static_cast<int8_t>(this->fetchByte());
-            if (getZ()) { // Z is true, jump
+            if (this->getZ()) { // Z is true, jump
                 this->PC += offset;
                 return 12;
             }
@@ -524,7 +524,7 @@ uint8_t CPU::execute(uint8_t instr) {
 
         case 0x30: { // JR NC,i8
             int8_t offset = static_cast<int8_t>(this->fetchByte());
-            if (!getC()) { // C is false, jump
+            if (!this->getC()) { // C is false, jump
                 this->PC += offset;
                 return 12;
             }
@@ -587,7 +587,7 @@ uint8_t CPU::execute(uint8_t instr) {
         
         case 0x38: { // JR C,i8
             int8_t offset = static_cast<int8_t>(this->fetchByte());
-            if (getC()) { // C is true, jump
+            if (this->getC()) { // C is true, jump
                 this->PC += offset;
                 return 12;
             }
@@ -1406,7 +1406,7 @@ uint8_t CPU::execute(uint8_t instr) {
             this->setZ(false);
             this->setN(false);  
             this->setH((this->SP & 0x000F) + (rawByte & 0x0F) > 0x0F);
-            this->setC((this->SP & 0x00FF) + byte > 0xFF);
+            this->setC((this->SP & 0x00FF) + rawByte > 0xFF);
 
             this->setHL(this->SP + byte);
             return 12;
@@ -1548,13 +1548,13 @@ uint8_t CPU::executePrefix(uint8_t instr) {
     }
 }
 
-void CPU::handleInterrupts() {
+uint8_t CPU::handleInterrupts() {
     uint8_t IE = this->bus.read(0xFFFF); // Interrupt Enable Register
     uint8_t IF = this->bus.read(0xFF0F); // Interrupt
     uint8_t pendingInterrupts = IE & IF & 0x1F; // Only consider the lower 5 bits
 
     if (!pendingInterrupts) {
-        return; // No interrupts to handle
+        return 0; // No interrupts to handle
     }
 
     if (this->isHalted) {
@@ -1562,7 +1562,7 @@ void CPU::handleInterrupts() {
     }
 
     if (!this->IME) {
-        return; // Interrupts are disabled
+        return 0; // Interrupts are disabled
     }
 
     this->IME = false; // Disable further interrupts
@@ -1577,6 +1577,7 @@ void CPU::handleInterrupts() {
         }
     }
     
+    return 20; // Return 20 cycles for the interrupt handling
 }
 
 uint8_t CPU::ADD(uint8_t reg) {

@@ -18,7 +18,6 @@ class CPU {
         // CPU state
         bool IME = false; // 1-bit IME (interrupt master enable)
         bool isHalted = false; // Flag to indicate if the CPU is in a halted state
-        uint8_t pendingInterrupts = 0; // Bitmask for pending interrupts
         uint8_t eiDelay = 0; // Delay for enabling interrupts after executing EI instruction
 
         // 8-bit register
@@ -60,7 +59,7 @@ class CPU {
         void writeWord(uint16_t addr, uint16_t word);
         uint8_t execute(uint8_t opcode);
         uint8_t executePrefix(uint8_t opcode);
-        void handleInterrupts();
+        uint8_t handleInterrupts();
         
         // CPU instructions helper
         // Arithmetic operations

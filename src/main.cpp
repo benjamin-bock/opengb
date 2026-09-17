@@ -28,12 +28,12 @@ int main(int argc, char* argv[]) {
     // Loop execution
     for (;;) {
         uint8_t cycles = cpu.step();
+        (void)cycles;
+
+
 
         // Update the timer
         // timer.step(cycles);
-
-        // For now, we can just print the cycles for debugging
-        std::cout << "Executed instruction in " << static_cast<int>(cycles) << " cycles." << std::endl;
     }
 
     return 0;
