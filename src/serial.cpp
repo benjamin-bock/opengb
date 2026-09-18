@@ -1,5 +1,6 @@
 #include "../include/serial.hpp"
-#include <cstdint>
+
+#include <iostream>
 
 Serial::Serial() {
     this->SB = 0x00;

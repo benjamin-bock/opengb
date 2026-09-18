@@ -3,6 +3,7 @@
 #include "../include/cartridge.hpp"
 #include "../include/bus.hpp"
 #include "../include/cpu.hpp"
+#include "../include/timer.hpp"
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -28,12 +29,9 @@ int main(int argc, char* argv[]) {
     // Loop execution
     for (;;) {
         uint8_t cycles = cpu.step();
-        (void)cycles;
 
-
-
-        // Update the timer
-        // timer.step(cycles);
+        // Update the bus components
+        bus.step(cycles);
     }
 
     return 0;

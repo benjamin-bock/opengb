@@ -1,10 +1,7 @@
 #include "../include/bus.hpp"
+#include <cstdint>
 
-#include "../include/cartridge.hpp"
-#include "../include/serial.hpp"
-
-
-Bus::Bus(Cartridge& cart) : cart(cart) {
+Bus::Bus(Cartridge& cart) : cart(cart), timer(*this) {
     this->vram.fill(0x00);
     this->wram0.fill(0x00);
     this->wram1.fill(0x00);
@@ -134,6 +131,12 @@ void Bus::write(uint16_t addr, uint8_t data) {
     }
 }
 
+void Bus::step(uint8_t cycles) {
+    this->timer.step(cycles);
+    // this->apu.step(cycles);
+    // this->ppu.step(cycles);
+}
+
 uint8_t Bus::readIO(uint16_t addr) const {
     if (addr == 0xFF00) {
         // Joypad (not yet implemented)
@@ -143,9 +146,15 @@ uint8_t Bus::readIO(uint16_t addr) const {
         return this->serial.read(addr);
     }
     else if (addr >= 0xFF04 && addr <= 0xFF07) {
-        if (addr == 0xFF04) {
-            static uint8_t divCounter = 0;
-            return divCounter++;
+        switch (addr) {
+            case 0xFF04:
+                return this->timer.getDIV(); break;
+            case 0xFF05:
+                return this->timer.getTIMA(); break;
+            case 0xFF06:
+                return this->timer.getTMA(); break;
+            case 0xFF07:
+                return this->timer.getTAC(); break;
         }
         return 0x00;
     }
@@ -180,7 +189,16 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
         return;
     }
     else if (addr >= 0xFF04 && addr <= 0xFF07) {
-        // Timer (not yet implemented)
+        switch (addr) {
+            case 0xFF04:
+                this->timer.setDIV(data); break;
+            case 0xFF05:
+                this->timer.setTIMA(data); break;
+            case 0xFF06:
+                this->timer.setTMA(data); break;
+            case 0xFF07:
+                this->timer.setTAC(data); break;
+        }
         return;
     }
     else if (addr == 0xFF0F) {

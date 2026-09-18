@@ -2,7 +2,7 @@
 
 ```bash
 cpu_instrs/source/01-special.gb : Passed
-cpu_instrs/source/02-interrupts.gb : Failed #4
+cpu_instrs/source/02-interrupts.gb : Passed
 cpu_instrs/source/03-op sp,hl.gb : Passed
 cpu_instrs/source/04-op r,imm.gb : Passed
 cpu_instrs/source/05-op rp.gb : Passed

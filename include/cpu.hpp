@@ -9,6 +9,7 @@
 class CPU {
     public:
         CPU(Bus& bus);
+        ~CPU() = default;
 
         uint8_t step();
         

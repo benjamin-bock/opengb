@@ -1,5 +1,6 @@
 #include "../include/cpu.hpp"
 
+#include <iostream>
 CPU::CPU(Bus& bus) : bus(bus){
     A = 0x01; // hardware checks wich console is running (GB, GBC, GBA, etc.)
     F = 0xB0; // 1011 0000 -> Z = 1, N = 0, H = 1, C = 1
@@ -292,6 +293,7 @@ uint8_t CPU::execute(uint8_t instr) {
 
         case 0x10: // STOP
             this->fetchByte(); // ignore next instruction 0x00
+            this->bus.write(0xFF04, 0x00); // reset the DIV timer register
             // puts the GB into low power standby mode
             return 4;
 
