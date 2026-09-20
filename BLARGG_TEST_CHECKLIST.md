@@ -13,3 +13,10 @@ cpu_instrs/source/09-op r,r.gb : Passed
 cpu_instrs/source/10-bit ops.gb : Passed
 cpu_instrs/source/11-op a,(hl).gb : Passed
 ```
+
+# Instruction Timing :
+
+```bash
+instr_timing/instr_timing.gb : Passed
+```
+

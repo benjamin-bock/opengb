@@ -1379,7 +1379,7 @@ uint8_t CPU::execute(uint8_t instr) {
         case 0xF2: { // LD A,(FF00+C)
             uint8_t val = this->bus.read(0xFF00 + this->C);
             this->A = val;
-            return 12;
+            return 8;
         }
   
         case 0xF3: // DI

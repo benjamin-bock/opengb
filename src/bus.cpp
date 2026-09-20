@@ -1,7 +1,7 @@
 #include "../include/bus.hpp"
 #include <cstdint>
 
-Bus::Bus(Cartridge& cart) : cart(cart), timer(*this) {
+Bus::Bus(Cartridge& cart) : cart(cart), timer(*this), ppu(*this) {
     this->vram.fill(0x00);
     this->wram0.fill(0x00);
     this->wram1.fill(0x00);
@@ -172,6 +172,28 @@ uint8_t Bus::readIO(uint16_t addr) const {
         if (addr == 0xFF44) {
             return 0x90; // Fake VBlank (Scanline 144) so ROM wait loops don't hang!
         }
+        switch (addr) {
+            case 0xFF40:
+                return this->ppu.getLCDC();
+            case 0xFF41:
+                return this->ppu.getSTAT();
+            case 0xFF42:
+                return this->ppu.getSCY();
+            case 0xFF43:
+                return this->ppu.getSCX();
+            case 0xFF44:
+                return this->ppu.getLY();
+            case 0xFF45:
+                return this->ppu.getLYC();
+            case 0xFF46:
+                return 0xFF; // write only register to start DMA transfer
+            case 0xFF47:
+                return this->ppu.getBGP();
+            case 0xFF48:
+                return this->ppu.getOBP0();
+            case 0xFF49:
+                return this->ppu.getOBP1();           
+        }
         return 0x00;
     }
     else {
@@ -215,9 +237,29 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
         return;
     }
     else if (addr >= 0xFF40 && addr <= 0xFF4B) {
-        // PPU (not yet implemented)
+        switch (addr) {
+            case 0xFF40:
+                this->ppu.setLCDC(data);
+            case 0xFF41:
+                this->ppu.setSTAT(data);
+            case 0xFF42:
+                this->ppu.setSCY(data);
+            case 0xFF43:
+                this->ppu.setSCX(data);
+            case 0xFF44:
+                this->ppu.setLY(data);
+            case 0xFF45:
+                this->ppu.setLYC(data);
+            case 0xFF46:
+                this->dmaTransfer(data); // Start a DMA transfer
+            case 0xFF47:
+                this->ppu.setBGP(data);
+            case 0xFF48:
+                this->ppu.setOBP0(data);
+            case 0xFF49:
+                this->ppu.setOBP1(data);     
         return;
-    }
+        }
     /* Ignore the rest of the IO ports 
     ⚬	$FF50 (Boot ROM is not emulated, CPU's PC is initilised at 0x0100)   
     ⚬	$FF4C-$FF4D (KEY0/KEY1 - Vitesse CPU CGB)
@@ -229,6 +271,7 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
     ⚬	$FF70 (WRAM Bank CGB)
     because they are only for CGB mode
     */
+    }
 }
 
 void Bus::dmaTransfer(uint8_t source_prefix) {

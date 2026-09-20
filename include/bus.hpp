@@ -6,6 +6,7 @@
 #include "../include/cartridge.hpp"
 #include "../include/serial.hpp"
 #include "../include/timer.hpp"
+#include "../include/ppu.hpp"
 
 constexpr size_t ADDRESS_BUS_SIZE = 64 * 1024; // 64 KiB memory table
 constexpr size_t VRAM_SIZE = 8 * 1024; // 8 KiB VRAM
@@ -26,6 +27,7 @@ class Bus {
         Cartridge& cart;
         Serial serial;
         Timer timer;
+        PPU ppu;
 
         bool isAddressValid(uint16_t addr) const;
 
