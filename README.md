@@ -122,4 +122,4 @@ Issues and pull requests are welcome, especially around accuracy, MBCs, and the 
 
 ## License
 
-No license file is included yet. Until one is added, the default is that others should not assume they may copy or redistribute the code. If you want this to be proper open source, add a [`LICENSE`](https://choosealicense.com/) (MIT is a common choice for emulators).
+Released under the [MIT License](LICENSE).
