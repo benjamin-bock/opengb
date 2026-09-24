@@ -1,6 +1,7 @@
 #include "../include/cpu.hpp"
 
 #include <iostream>
+
 CPU::CPU(Bus& bus) : bus(bus){
     A = 0x01; // hardware checks wich console is running (GB, GBC, GBA, etc.)
     F = 0xB0; // 1011 0000 -> Z = 1, N = 0, H = 1, C = 1

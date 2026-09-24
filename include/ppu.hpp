@@ -9,6 +9,15 @@ class PPU {
         PPU(Bus& bus);
         ~PPU() = default;
 
+        void step(uint8_t cycles);
+        void setVBlank(bool data);
+        bool isLCDEnabled();
+        bool isWindowEnabled();
+        bool isSpriteEnabled();
+        bool getAddrMode();
+        bool getBgTileMap();
+        bool getWinTileMap();
+
         // getter functions
         uint8_t getLCDC() const;
         uint8_t getSTAT() const;
@@ -38,6 +47,9 @@ class PPU {
     private:
         Bus& bus;
 
+        // Count cycles from 0 to 456 in the current scanline
+        uint16_t cycleCounter;
+
         // LCDC register
         uint8_t LCDC;
 /*      bool lcdEnable;
@@ -65,4 +77,15 @@ class PPU {
 
         // OBJ palette 0,1 data
         uint8_t OBP0, OBP1;
+
+        // Private functions
+        void setMode(uint8_t sel);
+        void cmpLY();
+
+        // Drawing
+        void renderScanline();
+        void renderBackground();
+        void renderWindow();
+        void renderSprites();
+
 };

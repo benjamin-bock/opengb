@@ -133,8 +133,8 @@ void Bus::write(uint16_t addr, uint8_t data) {
 
 void Bus::step(uint8_t cycles) {
     this->timer.step(cycles);
+    this->ppu.step(cycles);
     // this->apu.step(cycles);
-    // this->ppu.step(cycles);
 }
 
 uint8_t Bus::readIO(uint16_t addr) const {
