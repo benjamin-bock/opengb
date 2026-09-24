@@ -24,14 +24,6 @@ PPU::PPU(Bus& bus) : bus(bus) {
     
     // LCDC register
     LCDC = 0x00;
-/*    lcdEnable = false;
-    winMap = false;
-    winEnable = false;
-    winAddrMode = false;
-    bgMap = false;
-    objSize = false;
-    objEnable = false;
-    enablePrio = false; */
 
     // Window coordinates
     WY = 0x00;
@@ -74,12 +66,14 @@ void PPU::step(uint8_t cycles) {
 
         // Trigger VBlank at rising edge of 144
         if (this->LY == 144) {
-            this->setVBlank(true);
+            this->setVBlank();
         }
 
         // LY overflow => reset
         if (this->LY > 153) {
             this->LY = 0;
+            this->windowLineCounter = 0;
+            this->windowYTriggered = false;
         }
 
         // Compare LY == LYC
@@ -123,18 +117,20 @@ void PPU::setMode(uint8_t sel) {
     }
     // Replace 2 LSB of STAT by sel
     this->STAT = (this->STAT & 0xFC) | sel;
+    this->checkStatInterrupt();
     return;
 }
 
 void PPU::cmpLY() {
     this->STAT = (this->STAT & 0xFB) | ((this->LY == this->LYC) << 2); // Replace bit2 by comparison result
+    this->checkStatInterrupt();
 }
 
-void PPU::setVBlank(bool data) {
+void PPU::setVBlank() {
     uint8_t IF = this->bus.read(0xFF0F);
 
     // set bit0 of IF
-    this->bus.write(0xFF0F, (IF & 0xFE) | data);
+    this->bus.write(0xFF0F, IF | 0x01);
 }
 
 bool PPU::isLCDEnabled() {
@@ -144,17 +140,10 @@ bool PPU::isLCDEnabled() {
 void PPU::renderScanline() {
     // first render the background
     this->renderBackground();
-
-    // second render the window, if enabled
-    if (this->isWindowEnabled() && this->LY >= this->WY) {
-        this->renderWindow();
-    }
-
-    // third render the sprites, if enabled
-    if (this->isSpriteEnabled()) {
-        this->renderSprites();
-    }
-    return;
+    // second render the window
+    this->renderWindow();
+    // third render the sprites
+    this->renderSprites();
 }
 
 void PPU::renderBackground() {
@@ -378,6 +367,36 @@ void PPU::clearFrameReady() {
     return;
 }
 
+void PPU::checkStatInterrupt() {
+    bool interrupt = false;
+
+    // Bit 6 : LYC == LY
+    if ((this->STAT & (1 << 6)) && (this->LY == this->LYC)) {
+        interrupt = true;
+    }
+
+    uint8_t currentMode = this->STAT & 0x03;
+
+    // Bit 5 : Mode 2 (OAM Scan)
+    if ((this->STAT & (1 << 5)) && (currentMode == 2)) {
+        interrupt = true;
+    }
+    // Bit 4 : Mode 1 (VBlank)
+    if ((this->STAT & (1 << 4)) && (currentMode == 1)) {
+        interrupt = true;
+    }
+    // Bit 3 : Mode 0 (HBlank)
+    if ((this->STAT & (1 << 3)) && (currentMode == 0)) {
+        interrupt = true;
+    }
+
+    // If a condition is met, raise bit 1 of the IF register (bit 1 = LCD STAT Interrupt)
+    if (interrupt) {
+        uint8_t IF = this->bus.read(0xFF0F);
+        this->bus.write(0xFF0F, IF | (1 << 1));
+    }
+}
+
 // Getter functions
 uint8_t PPU::getLCDC() const {
     return this->LCDC;
@@ -433,7 +452,9 @@ void PPU::setLCDC(uint8_t data) {
 }
 
 void PPU::setSTAT(uint8_t data) {
-    this->STAT = data;
+    // bits 2, 1 and 0 are read-only
+    // bit 7 is always set on DMG
+    this->STAT = (this->STAT & 0x07) | (data & 0x78) | 0x80;
 }
 
 void PPU::setSCY(uint8_t data) {
@@ -465,7 +486,8 @@ void PPU::setWX(uint8_t data) {
 }
 
 void PPU::setLY(uint8_t data) {
-    this->LY = data;
+    (void)data;
+    this->LY = 0; // writing to LY resets the register
 }
 
 void PPU::setLYC(uint8_t data) {

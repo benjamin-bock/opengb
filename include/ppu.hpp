@@ -10,7 +10,7 @@ class PPU {
         ~PPU() = default;
 
         void step(uint8_t cycles);
-        void setVBlank(bool data);
+        void setVBlank();
         bool isLCDEnabled();
         bool isWindowEnabled();
         bool isSpriteEnabled();
@@ -69,14 +69,6 @@ class PPU {
 
         // LCDC register
         uint8_t LCDC;
-/*      bool lcdEnable;
-        bool winMap;
-        bool winEnable;
-        bool winAddrMode;
-        bool bgMap;
-        bool objSize;
-        bool objEnable;
-        bool enablePrio; */
 
         // Window coordinates
         uint8_t WY, WX;
@@ -98,6 +90,7 @@ class PPU {
         // Private functions
         void setMode(uint8_t sel);
         void cmpLY();
+        void checkStatInterrupt();
 
         // Drawing
         void renderScanline();

@@ -173,9 +173,6 @@ uint8_t Bus::readIO(uint16_t addr) const {
         return this->dmaRegister;
     }
     else if (addr >= 0xFF40 && addr <= 0xFF4B) {
-        if (addr == 0xFF44) {
-            return 0x90; // Fake VBlank (Scanline 144) so ROM wait loops don't hang!
-        }
         switch (addr) {
             case 0xFF40:
                 return this->ppu.getLCDC();
@@ -243,27 +240,27 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
     else if (addr >= 0xFF40 && addr <= 0xFF4B) {
         switch (addr) {
             case 0xFF40:
-                this->ppu.setLCDC(data);
+                this->ppu.setLCDC(data); break;
             case 0xFF41:
-                this->ppu.setSTAT(data);
+                this->ppu.setSTAT(data); break;
             case 0xFF42:
-                this->ppu.setSCY(data);
+                this->ppu.setSCY(data); break;
             case 0xFF43:
-                this->ppu.setSCX(data);
+                this->ppu.setSCX(data); break;
             case 0xFF44:
-                this->ppu.setLY(data);
+                this->ppu.setLY(data); break;
             case 0xFF45:
-                this->ppu.setLYC(data);
+                this->ppu.setLYC(data); break;
             case 0xFF46:
-                this->dmaTransfer(data); // Start a DMA transfer
+                this->dmaTransfer(data);  break;// Start a DMA transfer
             case 0xFF47:
-                this->ppu.setBGP(data);
+                this->ppu.setBGP(data); break;
             case 0xFF48:
-                this->ppu.setOBP0(data);
+                this->ppu.setOBP0(data); break;
             case 0xFF49:
-                this->ppu.setOBP1(data);     
+                this->ppu.setOBP1(data); break;     
+            }
         return;
-        }
     /* Ignore the rest of the IO ports 
     ⚬	$FF50 (Boot ROM is not emulated, CPU's PC is initilised at 0x0100)   
     ⚬	$FF4C-$FF4D (KEY0/KEY1 - Vitesse CPU CGB)
