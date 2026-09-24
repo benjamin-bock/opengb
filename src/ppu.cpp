@@ -2,7 +2,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <iostream>
 #include <sys/types.h>
 
 #include "../include/bus.hpp"
@@ -17,6 +16,8 @@ static constexpr uint32_t COLOR_PALETTE[4] = {
     0xFF555555, // 2: Dark gray
     0xFF000000  // 3: Black
 };
+
+static constexpr uint16_t OAM_MEMORY_ADDRESS = 0xFE00;
 
 PPU::PPU(Bus& bus) : bus(bus) {
     cycleCounter = 0x0000;
@@ -264,11 +265,77 @@ void PPU::renderWindow() {
 }
 
 void PPU::renderSprites() {
-    if (spriteColorID != 0) { // Le sprite n'est pas transparent
-        bool bgPriority = (spriteAttr & 0x80);
-        // Si bgPriority est actif, le sprite ne s'affiche QUE sur colorID 0 du BG
-        if (!bgPriority || bgScanlineColor[x] == 0) {
-            this->framebuffer[LY][x] = COLOR_PALETTE[spriteShade];
+    if (!this->isSpriteEnabled()) {
+        return;
+    }
+    // iterate in decreasing order to get higher priority sprites (low index)
+    for (int i = 39; i >= 0; --i) {
+        uint16_t spriteAddr = OAM_MEMORY_ADDRESS + (i * 4);
+
+        uint8_t spriteY = this->bus.read(spriteAddr);
+        uint8_t spriteX = this->bus.read(spriteAddr + 1);
+        uint8_t tileID  = this->bus.read(spriteAddr + 2);
+        // Bit 7 : Priority (0 = over BG, 1 = behind BG unless color 0).
+        // Bit 6 : Y flip.
+        // Bit 5 : X flip.
+        // Bit 4 : DMG Palette (0 = OBP0 at $FF48, 1 = OBP1 at $FF49).
+        uint8_t spriteFlag = this->bus.read(spriteAddr + 3);
+
+        
+        int posY = static_cast<int>(spriteY) - 16;
+        int posX = static_cast<int>(spriteX) - 8;
+        uint8_t spriteHeight = this->getSpriteSize() ? 16 : 8;
+        
+        if (this->LY < posY || this->LY >= posY + spriteHeight) {
+            continue; // Sprite is not on this scanline
+        }
+        
+        // ignore bit0 of tileID for 8x16 sprite
+        if (spriteHeight == 16) {
+            tileID &= 0xFE;
+        }
+
+        uint8_t lineInSprite = this->LY - posY;
+
+        // is Y-flip set ?
+        if ((spriteFlag & 0x40) != 0) {
+            lineInSprite = (spriteHeight - 1) - lineInSprite;
+        }
+        
+        uint16_t tileAddr = 0x8000 + (tileID * 16) + (lineInSprite * 2);
+    
+        uint8_t byte0 = this->bus.read(tileAddr);
+        uint8_t byte1 = this->bus.read(tileAddr + 1);
+
+        for (int pixel = 0; pixel < 8; ++pixel) {
+            int screenX = posX + pixel;
+        
+            // Verify if pixel is visible on screen (0 to 159)
+            if (screenX < 0 || screenX >= 160) {
+                continue;
+            }
+        
+            // X-Flip management (bit 5)
+            int bitPos = (spriteFlag & (1 << 5)) ? pixel : (7 - pixel);
+        
+            uint8_t loBit = (byte0 >> bitPos) & 1;
+            uint8_t hiBit = (byte1 >> bitPos) & 1;
+            uint8_t spriteColorID = (hiBit << 1) | loBit;
+        
+            // Couleur 0 = TRANSPARENTE pour les sprites !
+            if (spriteColorID == 0) {
+                continue;
+            }
+        
+            // Choix de la palette (Bit 4 : 0 = OBP0, 1 = OBP1)
+            uint8_t palette = (spriteFlag & (1 << 4)) ? this->OBP1 : this->OBP0;
+            uint8_t spriteShade = (palette >> (spriteColorID * 2)) & 0x03;
+        
+            // Priorité par rapport au BG
+            bool bgPriority = (spriteFlag & 0x80);
+            if (!bgPriority || this->bgScanlineColor[screenX] == 0) {
+                this->framebuffer[this->LY][screenX] = COLOR_PALETTE[spriteShade];
+            }
         }
     }
 }
@@ -279,6 +346,11 @@ bool PPU::isWindowEnabled() {
 
 bool PPU::isSpriteEnabled() {
     return (this->LCDC & 0x02) != 0;
+}
+
+// if 0 : 8x8, if 1 : 8x16
+bool PPU::getSpriteSize() {
+    return (this->LCDC & 0x04) != 0;
 }
 
 // if false, "$8800 method" uses $9000 base pointer

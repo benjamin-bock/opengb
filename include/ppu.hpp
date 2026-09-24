@@ -14,6 +14,7 @@ class PPU {
         bool isLCDEnabled();
         bool isWindowEnabled();
         bool isSpriteEnabled();
+        bool getSpriteSize();
         bool getAddrMode();
         bool getBgTileMap();
         bool getWinTileMap();
