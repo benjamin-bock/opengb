@@ -11,6 +11,13 @@ static constexpr uint8_t MODE_2_LIMIT = 80;
 static constexpr uint16_t MODE_3_LIMIT = 252; // 80 + 172 = 252
 static constexpr uint16_t SCANLINE_LENGTH = 456;
 
+static constexpr uint32_t COLOR_PALETTE[4] = {
+    0xFFFFFFFF, // 0: White
+    0xFFAAAAAA, // 1: Light gray
+    0xFF555555, // 2: Dark gray
+    0xFF000000  // 3: Black
+};
+
 PPU::PPU(Bus& bus) : bus(bus) {
     cycleCounter = 0x0000;
     
@@ -101,6 +108,7 @@ void PPU::step(uint8_t cycles) {
     else if (this->LY >= 144 && this->LY <= 153) {
         // Vertical blank
         this->setMode(1);
+        this->frameReady = true;
     }
     return;
 }
@@ -148,7 +156,7 @@ void PPU::renderScanline() {
 
 void PPU::renderBackground() {
     uint8_t tilemap;
-    uint16_t tileID;
+    uint8_t tileID;
     uint16_t lineOffset;
     uint16_t tileAddr;
     uint16_t tile;
@@ -175,11 +183,11 @@ void PPU::renderBackground() {
         tileCol = virtX / 8;
         tileRow = virtY / 8;
         addrTM = (0x9800 + offsetTM) + (tileRow << 5) + tileCol;
-        tileID = (this->bus.read(addrTM) << 8) | (this->bus.read(addrTM));
+        tileID = this->bus.read(addrTM);
 
         // find tile in VRAM
         lineOffset = (virtX % 8) << 1;
-        if (!this->getAddrMode()) {
+        if (this->getAddrMode()) {
             // unsigned mode, base pointer at $8000
             tileAddr = 0x8000 + (tileID << 4) + lineOffset;
         }
@@ -199,6 +207,8 @@ void PPU::renderBackground() {
         colorID = (hiBit << 1) | loBit;
 
         shade = (this->BGP >> (colorID * 2)) & 0x03;
+
+        this->framebuffer[LY][x] = COLOR_PALETTE[shade];
 
     }
 }
@@ -233,6 +243,15 @@ bool PPU::getBgTileMap() {
 // When it’s clear (0), the $9800 tilemap is used, otherwise it’s the $9C00 one.
 bool PPU::getWinTileMap() {
     return (this->LCDC & 0x40) != 0;
+}
+
+bool PPU::isFrameReady() {
+    return this->frameReady;
+}
+
+void PPU::clearFrameReady() {
+    this->frameReady = false;
+    return;
 }
 
 // Getter functions
@@ -278,6 +297,10 @@ uint8_t PPU::getOBP0() const {
 
 uint8_t PPU::getOBP1() const {
     return this->OBP1;
+}
+
+const uint32_t* PPU::getFramebuffer() const {
+    return &this->framebuffer[0][0];
 }
 
 // Setter functions

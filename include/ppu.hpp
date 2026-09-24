@@ -17,6 +17,8 @@ class PPU {
         bool getAddrMode();
         bool getBgTileMap();
         bool getWinTileMap();
+        bool isFrameReady();
+        void clearFrameReady();
 
         // getter functions
         uint8_t getLCDC() const;
@@ -30,6 +32,7 @@ class PPU {
         uint8_t getBGP() const;
         uint8_t getOBP0() const;
         uint8_t getOBP1() const;
+        const uint32_t* getFramebuffer() const;
 
         // setter functions
         void setLCDC(uint8_t data);
@@ -49,6 +52,12 @@ class PPU {
 
         // Count cycles from 0 to 456 in the current scanline
         uint16_t cycleCounter;
+
+        // Screen buffer of 144x160 px
+        uint32_t framebuffer[144][160];
+
+        // flag to allow frame generation
+        bool frameReady;
 
         // LCDC register
         uint8_t LCDC;

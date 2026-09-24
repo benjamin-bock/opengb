@@ -32,6 +32,10 @@ bool Bus::isAddressValid(uint16_t addr) const {
            (addr >= 0xFF00));
 };
 
+PPU& Bus::getPPU() {
+    return this->ppu;
+}
+
 uint8_t Bus::read(uint16_t addr) const {
     if (!(this->isAddressValid(addr)))
         return 0xFF;

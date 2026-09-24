@@ -15,6 +15,12 @@ endif
 CXXFLAGS ?= -Wall -Wextra -std=c++23 -O2
 LDFLAGS  ?=
 
+# SDL2 (Homebrew / system install via pkg-config)
+SDL2_CFLAGS := $(shell pkg-config --cflags sdl2)
+SDL2_LIBS   := $(shell pkg-config --libs sdl2)
+CXXFLAGS    += $(SDL2_CFLAGS)
+LDFLAGS     += $(SDL2_LIBS)
+
 # Directories
 SRC_DIR  := src
 OBJ_DIR  := build/obj
@@ -38,7 +44,7 @@ all: $(TARGET)
 # Rule to link the final executable from object files
 $(TARGET): $(OBJS) | $(BIN_DIR)
 	rm -f $@
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $@
+	$(CXX) $(CXXFLAGS) $(OBJS) $(LDFLAGS) -o $@
 	@echo "Build successful: $@"
 
 # Rule to compile each .cpp file into a .o file
