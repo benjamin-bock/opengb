@@ -144,10 +144,12 @@ bool CPU::getC() {
 }
 
 uint8_t CPU::step() {
-    uint8_t cycles = 0;
+    uint8_t interruptCycles = this->handleInterrupts();
 
     // Check and handle any pending interrupts
-    cycles += this->handleInterrupts(); 
+    if (interruptCycles > 0) {
+        return interruptCycles;
+    }
 
     if (this->isHalted) {
         // If the CPU is halted, we skip the instruction fetch and execution
@@ -156,7 +158,7 @@ uint8_t CPU::step() {
 
     // Fetch the next instruction and execute it
     uint8_t opcode = this->fetchByte();
-    cycles += this->execute(opcode);
+    uint8_t cycles = this->execute(opcode);
     
     // Handle the EI delay if it's active
     if (this->eiDelay > 0) {
@@ -165,7 +167,6 @@ uint8_t CPU::step() {
             this->IME = true; // Enable interrupts after the delay
         }
     }
-
     return cycles;
 }
 
@@ -1263,7 +1264,7 @@ uint8_t CPU::execute(uint8_t instr) {
 
         case 0xD9: // RETI
             this->PC = this->POP();
-            this->eiDelay = 2; // enable interrupts after 2 cycles;
+            this->IME = true; // enable interrupts after 2 cycles;
             return 16;            
   
         case 0xDA: { // JP C,u16

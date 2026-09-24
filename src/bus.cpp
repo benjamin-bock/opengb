@@ -1,7 +1,7 @@
 #include "../include/bus.hpp"
 #include <cstdint>
 
-Bus::Bus(Cartridge& cart) : cart(cart), timer(*this), ppu(*this) {
+Bus::Bus(Cartridge& cart) : cart(cart), timer(*this), ppu(*this), joypad(*this) {
     this->vram.fill(0x00);
     this->wram0.fill(0x00);
     this->wram1.fill(0x00);
@@ -143,8 +143,7 @@ void Bus::step(uint8_t cycles) {
 
 uint8_t Bus::readIO(uint16_t addr) const {
     if (addr == 0xFF00) {
-        // Joypad (not yet implemented)
-        return 0xFF;
+        return this->joypad.read();
     }
     else if (addr == 0xFF01 || addr == 0xFF02) {
         return this->serial.read(addr);
@@ -163,7 +162,7 @@ uint8_t Bus::readIO(uint16_t addr) const {
         return 0x00;
     }
     else if (addr == 0xFF0F) {
-        return this->interruptFlag;
+        return this->interruptFlag | 0xE0; // bits 5-7 are always 1
     }
     else if (addr >= 0xFF10 && addr <= 0xFF3F) {
         // APU (not yet implemented)
@@ -204,7 +203,7 @@ uint8_t Bus::readIO(uint16_t addr) const {
 
 void Bus::writeIO(uint16_t addr, uint8_t data) {
     if (addr == 0xFF00) {
-        // Joypad (not yet implemented)
+        this->joypad.write(data);
         return;
     }
     else if (addr == 0xFF01 || addr == 0xFF02) {
