@@ -56,6 +56,13 @@ class PPU {
         // Screen buffer of 144x160 px
         uint32_t framebuffer[144][160];
 
+        // BG/Window scanline color buffer
+        uint8_t bgScanlineColor[160]; 
+
+        // Window variables
+        bool windowYTriggered = false;
+        uint8_t windowLineCounter = 0;
+
         // flag to allow frame generation
         bool frameReady;
 

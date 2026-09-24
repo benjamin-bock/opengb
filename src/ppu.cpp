@@ -59,6 +59,8 @@ void PPU::step(uint8_t cycles) {
     // check if LCD is enabled
     if (!this->isLCDEnabled()) {
         this->LY = 0;
+        this->windowLineCounter = 0;
+        this->windowYTriggered = false;
         this->cycleCounter = 0;
         this->setMode(0);
         return;
@@ -155,74 +157,124 @@ void PPU::renderScanline() {
 }
 
 void PPU::renderBackground() {
-    uint8_t tilemap;
-    uint8_t tileID;
-    uint16_t lineOffset;
-    uint16_t tileAddr;
-    uint16_t tile;
-    uint8_t byte0;
-    uint8_t byte1;
-    uint8_t pixelX;
-    uint8_t bitPos;
-    bool loBit;
-    bool hiBit;
-    uint8_t colorID;
-    uint8_t shade;
     uint16_t offsetTM = this->getBgTileMap() ? 0x0400 : 0x0000;
-    uint16_t offsetTD = this->getAddrMode() ? 0x1000 : 0x0000;
+    bool isUnsignedMode = this->getAddrMode();
 
-    uint8_t virtY = (this->LY + this->SCY); // mod 256 is automatic on uint8_t
-    uint8_t virtX;
-    uint16_t tileCol, tileRow;
-    uint16_t addrTM;
+    uint8_t bgY = this->LY + this->SCY; // mod 256 is automatic on uint8_t
+    uint16_t tileRow = bgY / 8;
+    uint8_t lineOffset = (bgY % 8) << 1;
 
     // loop on the scanline
     for (uint8_t x = 0; x < 160; ++x) {
         // get tileID
-        virtX = (x + this->SCX); // mod 256 is automatic on uint8_t
-        tileCol = virtX / 8;
-        tileRow = virtY / 8;
-        addrTM = (0x9800 + offsetTM) + (tileRow << 5) + tileCol;
-        tileID = this->bus.read(addrTM);
+        uint8_t bgX = (x + this->SCX); // mod 256 is automatic on uint8_t
+        uint8_t tileCol = bgX / 8;
 
+        uint16_t addrTM = (0x9800 + offsetTM) + (tileRow << 5) + tileCol;
+        uint8_t tileID = this->bus.read(addrTM);
+
+        uint16_t tileAddr;
         // find tile in VRAM
-        lineOffset = (virtX % 8) << 1;
-        if (this->getAddrMode()) {
+        if (isUnsignedMode) {
             // unsigned mode, base pointer at $8000
             tileAddr = 0x8000 + (tileID << 4) + lineOffset;
         }
         else {
             // signed mode, base pointer at $9000
-            tileAddr = 0x9000 + (static_cast<int16_t>(tileID) * 16) + lineOffset;
+            tileAddr = 0x9000 + (static_cast<int8_t>(tileID) * 16) + lineOffset;
         }
-        byte0 = this->bus.read(tileAddr);
-        byte1 = this->bus.read(tileAddr + 1);
+        // read the tile data
+        uint8_t byte0 = this->bus.read(tileAddr);
+        uint8_t byte1 = this->bus.read(tileAddr + 1);
 
-        pixelX = virtX % 8;
-        bitPos = 7 - pixelX;
+        uint8_t pixelX = bgX % 8;
+        uint8_t bitPos = 7 - pixelX;
 
-        loBit = (byte0 >> bitPos) & 1;
-        hiBit = (byte1 >> bitPos) & 1;
+        bool loBit = (byte0 >> bitPos) & 1;
+        bool hiBit = (byte1 >> bitPos) & 1;
+        uint8_t colorID = (hiBit << 1) | loBit;
 
-        colorID = (hiBit << 1) | loBit;
+        uint8_t shade = (this->BGP >> (colorID * 2)) & 0x03;
 
-        shade = (this->BGP >> (colorID * 2)) & 0x03;
-
+        // update the framebuffer and the scanline color buffer
         this->framebuffer[LY][x] = COLOR_PALETTE[shade];
-
+        this->bgScanlineColor[x] = colorID;
     }
 }
 
 void PPU::renderWindow() {
-    
+    // check the Y condition
+    if (this->LY == this->WY) {
+        this->windowYTriggered = true;
+    }
+    // check if conditions are met
+    if (!this->isWindowEnabled()) {
+        return;
+    }
+
+    uint16_t offsetTM = this->getWinTileMap() ? 0x0400 : 0x0000;
+    bool isUnsignedMode = this->getAddrMode();
+
+    uint8_t winY = this->windowLineCounter; // mod 256 is automatic on uint8_t
+    uint16_t tileRow = winY / 8;
+    uint8_t lineOffset = (winY % 8) << 1;
+
+    // local variable in <int> for speed in modern architecture
+    int screenStartX = static_cast<int>(this->WX) - 7;
+    if (screenStartX < 0) screenStartX = 0;
+
+    // loop on the scanline
+    for (int x = screenStartX; x < 160; ++x) {
+        // internal window coordinate
+        uint8_t winX = x - (this->WX - 7);
+        uint8_t tileCol = winX / 8;
+
+        // read tilemap
+        uint16_t addrTM = (0x9800 + offsetTM) + (tileRow << 5) + tileCol;
+        uint8_t tileID = this->bus.read(addrTM);
+
+        // find tile in VRAM
+        uint16_t tileAddr;
+        if (isUnsignedMode) {
+            // unsigned mode, base pointer at $8000
+            tileAddr = 0x8000 + (tileID << 4) + lineOffset;
+        }
+        else {
+            // signed mode, base pointer at $9000
+            tileAddr = 0x9000 + (static_cast<int8_t>(tileID) * 16) + lineOffset;
+        }
+        // read the tile data
+        uint8_t byte0 = this->bus.read(tileAddr);
+        uint8_t byte1 = this->bus.read(tileAddr + 1);
+
+        uint8_t pixelX = winX % 8;
+        uint8_t bitPos = 7 - pixelX;
+
+        bool loBit = (byte0 >> bitPos) & 1;
+        bool hiBit = (byte1 >> bitPos) & 1;
+        uint8_t colorID = (hiBit << 1) | loBit;
+
+        uint8_t shade = (this->BGP >> (colorID * 2)) & 0x03;
+
+        // update the framebuffer and the scanline color buffer
+        this->framebuffer[LY][x] = COLOR_PALETTE[shade];
+        this->bgScanlineColor[x] = colorID;
+    }
+    this->windowLineCounter++;
 }
 
 void PPU::renderSprites() {
-    
+    if (spriteColorID != 0) { // Le sprite n'est pas transparent
+        bool bgPriority = (spriteAttr & 0x80);
+        // Si bgPriority est actif, le sprite ne s'affiche QUE sur colorID 0 du BG
+        if (!bgPriority || bgScanlineColor[x] == 0) {
+            this->framebuffer[LY][x] = COLOR_PALETTE[spriteShade];
+        }
+    }
 }
 
 bool PPU::isWindowEnabled() {
-    return (this->LCDC & 0x20) != 0;
+    return (this->LCDC & 0x20) && this->windowYTriggered && (this->WX <= 166) && (this->WY <= 143);
 }
 
 bool PPU::isSpriteEnabled() {
