@@ -258,7 +258,11 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
             case 0xFF48:
                 this->ppu.setOBP0(data); break;
             case 0xFF49:
-                this->ppu.setOBP1(data); break;     
+                this->ppu.setOBP1(data); break;    
+            case 0xFF4A:
+                this->ppu.setWY(data); break;
+            case 0xFF4B:
+                this->ppu.setWX(data); break; 
             }
         return;
     /* Ignore the rest of the IO ports 
