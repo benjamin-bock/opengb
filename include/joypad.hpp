@@ -27,10 +27,11 @@ class Joypad {
         void keyPressed(JoypadKey input);
         void keyReleased(JoypadKey input);
 
-        bool isButtonEn();
-        bool isDpadEn();
+        bool isButtonEn() const;
+        bool isDpadEn() const;
 
     private:
+        Bus& bus;
         uint8_t selectBits;
         uint8_t buttons;
         uint8_t dpad;

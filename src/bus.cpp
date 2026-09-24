@@ -36,6 +36,10 @@ PPU& Bus::getPPU() {
     return this->ppu;
 }
 
+Joypad& Bus::getJoypad() {
+    return this->joypad;
+}
+
 uint8_t Bus::read(uint16_t addr) const {
     if (!(this->isAddressValid(addr)))
         return 0xFF;

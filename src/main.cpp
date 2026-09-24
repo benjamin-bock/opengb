@@ -6,6 +6,21 @@
 #include "../include/bus.hpp"
 #include "../include/cpu.hpp"
 #include "../include/timer.hpp"
+#include "../include/joypad.hpp"
+
+bool translateKey(SDL_Keycode sym, JoypadKey& outKey) {
+    switch (sym) {
+        case SDLK_d:        outKey = JoypadKey::Right; return true;
+        case SDLK_a:        outKey = JoypadKey::Left; return true;
+        case SDLK_w:        outKey = JoypadKey::Up; return true;
+        case SDLK_s:        outKey = JoypadKey::Down; return true;
+        case SDLK_LSHIFT:   outKey = JoypadKey::Start; return true;
+        case SDLK_RETURN:   outKey = JoypadKey::Select; return true;
+        case SDLK_j:        outKey = JoypadKey::B; return true;
+        case SDLK_k:        outKey = JoypadKey::A; return true;
+        default:           return false;
+    }
+}
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -98,15 +113,20 @@ int main(int argc, char* argv[]) {
                 if (event.type == SDL_QUIT) {
                     running = false;
                 }
+                else if (event.type == SDL_KEYDOWN) {
+                    JoypadKey key;
+                    if (translateKey(event.key.keysym.sym, key)) {
+                        bus.getJoypad().keyPressed(key);
+                    }
+                }
+                else if (event.type == SDL_KEYUP) {
+                    JoypadKey key;
+                    if (translateKey(event.key.keysym.sym, key)) {
+                        bus.getJoypad().keyReleased(key);
+                    }
+                }
             }
         }
-
     }
-
-    SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-
-    return 0;
 }
+
