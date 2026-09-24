@@ -91,15 +91,16 @@ int main(int argc, char* argv[]) {
             SDL_UpdateTexture(texture, nullptr, bus.getPPU().getFramebuffer(), 160 * sizeof(uint32_t));
             SDL_RenderCopy(renderer, texture, nullptr, nullptr);
             SDL_RenderPresent(renderer);
-        }
-
-        // Event manager
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                running = false;
+            
+            // Event manager
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_QUIT) {
+                    running = false;
+                }
             }
         }
+
     }
 
     SDL_DestroyTexture(texture);

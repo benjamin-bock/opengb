@@ -12,7 +12,7 @@ endif
 
 # Compiler and Flags
 
-CXXFLAGS ?= -Wall -Wextra -std=c++23 -O2
+CXXFLAGS ?= -Wall -Wextra -std=c++23 -O3
 LDFLAGS  ?=
 
 # SDL2 (Homebrew / system install via pkg-config)

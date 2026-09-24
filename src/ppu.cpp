@@ -67,6 +67,7 @@ void PPU::step(uint8_t cycles) {
         // Trigger VBlank at rising edge of 144
         if (this->LY == 144) {
             this->setVBlank();
+            this->frameReady = true; // frame is ready to be displayed
         }
 
         // LY overflow => reset
@@ -105,7 +106,6 @@ void PPU::step(uint8_t cycles) {
     else if (this->LY >= 144 && this->LY <= 153) {
         // Vertical blank
         this->setMode(1);
-        this->frameReady = true;
     }
     return;
 }
