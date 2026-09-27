@@ -3,6 +3,8 @@
 #include <array>
 #include <cstdint>
 
+class Bus;
+
 // Pulse with period sweep
 class Channel1 {
     public:
@@ -122,7 +124,7 @@ class Channel4 {
 
 class APU {
     public:
-        APU();
+        APU(Bus& bus);
         ~APU() = default;
         uint8_t read(uint16_t addr) const;
         void write(uint16_t addr, uint8_t data);

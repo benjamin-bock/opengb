@@ -43,7 +43,7 @@ Channel4::Channel4() {
     this->lengthTimer = 0;
 };
 
-APU::APU() {
+APU::APU(Bus& bus) {
     this->NR50 = 0x77;
     this->NR51 = 0xF3;
     this->NR52 = 0xF1;
