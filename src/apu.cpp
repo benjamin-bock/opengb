@@ -112,6 +112,10 @@ void Channel1::trigger() {
     if (step > 0) {
         this->calculateSweepPeriod();
     }
+
+    // Enveloppe reset
+    this->currentVolume = (this->NR12 & 0xF0) >> 4; // Bit 7-4
+    this->envelopeTimer = (this->NR12 & 0x03);      // Bit 2-0
 }
 
 void Channel1::reset() {

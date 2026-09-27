@@ -30,11 +30,18 @@ class Channel1 {
         bool enabled;
         bool DAC;
 
+        // Length
         uint8_t lengthTimer;
+        
+        // Sweep
         uint16_t shadowPeriod;
         uint8_t sweepTimer;
         bool sweepEnabled;
         uint16_t calculateSweepPeriod();
+
+        // Enveloppe
+        uint8_t currentVolume;
+        uint8_t envelopeTimer;
 
 };
 
