@@ -12,7 +12,13 @@ class Channel1 {
         void write(uint16_t addr, uint8_t value);
         void trigger();
         void reset();
+        void step(uint8_t cycles);
         bool isEnabled() const;
+
+        // Clock methods
+        void clockLength();
+        void clockSweep();
+        void clockEnvelope();
         
     private:
         uint8_t NR10; // $FF10 Sweep
@@ -35,8 +41,13 @@ class Channel2 {
         void write(uint16_t addr, uint8_t value);
         void trigger();
         void reset();
+        void step(uint8_t cycles);
         bool isEnabled() const;
-        
+
+        // Clock methods
+        void clockLength();
+        void clockEnvelope();
+
     private:
                       // no sweep
         uint8_t NR21; // $FF16 Duty & Length
@@ -58,7 +69,11 @@ class Channel3 {
         void write(uint16_t addr, uint8_t value);
         void trigger();
         void reset();
+        void step(uint8_t cycles);
         bool isEnabled() const;
+        
+        // Clock methods
+        void clockLength();
         
     private:
         uint8_t NR30; // $FF1A DAC Enable
@@ -80,9 +95,14 @@ class Channel4 {
         void write(uint16_t addr, uint8_t value);
         void trigger();
         void reset();
+        void step(uint8_t cycles);
         bool isEnabled() const;
         
-        private:
+        // Clock methods
+        void clockLength();
+        void clockEnvelope();
+
+    private:
                       // no sweep
         uint8_t NR41; // $FF20 Length Timer [write-only]
         uint8_t NR42; // $FF21 Volume & Envelope
@@ -101,6 +121,11 @@ class APU {
         void write(uint16_t addr, uint8_t data);
         void reset();
         void step(uint8_t cycles);
+
+        // Clock methods
+        void clockLength();
+        void clockSweep();
+        void clockEnvelope();
     
     private:
         Channel1 ch1;
@@ -112,4 +137,7 @@ class APU {
         uint8_t NR51;
         uint8_t NR52;
         std::array<uint8_t, 16> waveRam; // $FF30-FF3F
+
+        uint16_t frameSequencerCycles;
+        uint8_t frameSequencerStep;
 };

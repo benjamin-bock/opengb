@@ -39,6 +39,15 @@ Channel4::Channel4() {
     this->DAC = false;
 };
 
+APU::APU() {
+    this->NR50 = 0x77;
+    this->NR51 = 0xF3;
+    this->NR52 = 0xF1;
+
+    this->frameSequencerCycles = 0;
+    this->frameSequencerStep = 0;
+}
+
 uint8_t Channel1::read(uint16_t addr) const {
     switch (addr) {
         case 0xFF10: return this->NR10 | 0x80;
@@ -271,12 +280,6 @@ bool Channel4::isEnabled() const {
     return this->enabled;
 }
 
-APU::APU() {
-    this->NR50 = 0x77;
-    this->NR51 = 0xF3;
-    this->NR52 = 0xF1;
-}
-
 uint8_t APU::read(uint16_t addr) const {
     // Channels 1,2,3,4
     if (addr >= 0xFF10 && addr <= 0xFF14) return this->ch1.read(addr);
@@ -371,5 +374,65 @@ void APU::reset() {
 }
 
 void APU::step(uint8_t cycles) {
-    // TO-DO
+    // If the APU is down, ignore
+    if (!(this->NR52 & 0x80)) {
+        return;
+    }
+
+    // Step on each channel
+    this->ch1.step(cycles);
+    this->ch2.step(cycles);
+    this->ch3.step(cycles);
+    this->ch4.step(cycles);
+
+    // Increment the step frequencer (512 Hz -> every 8192 cycles)
+    this->frameSequencerCycles += cycles;
+    while (this->frameSequencerCycles >= 8192) {
+        this->frameSequencerCycles -= 8192;
+
+        switch (this->frameSequencerStep) {
+            case 0:
+                clockLength();
+                break;
+            case 1:
+                break;
+            case 2:
+                clockLength();
+                clockSweep();
+                break;
+            case 3:
+                break;
+            case 4:
+                clockLength();
+                break;
+            case 5:
+                break;
+            case 6:
+                clockLength();
+                clockSweep();
+                break;
+            case 7:
+                clockEnvelope();
+                break;
+        }
+
+        this->frameSequencerStep = (this->frameSequencerStep + 1) & 0x07; // Loop from 0 to 7
+    }
+}
+
+void APU::clockLength() {
+    this->ch1.clockLength();
+    this->ch2.clockLength();
+    this->ch3.clockLength();
+    this->ch4.clockLength();
+}
+
+void APU::clockSweep() {
+    this->ch1.clockSweep(); // Only channel 1 has a sweep
+}
+
+void APU::clockEnvelope() {
+    this->ch1.clockEnvelope();
+    this->ch2.clockEnvelope();
+    this->ch4.clockEnvelope(); // Channel 3 doesn't have envelope
 }
