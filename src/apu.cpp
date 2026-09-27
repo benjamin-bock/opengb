@@ -9,6 +9,7 @@ Channel1::Channel1() {
     this->NR14 = 0xBF;
     this->enabled = false;
     this->DAC = true;
+    this->lengthTimer = 0;
 };
 
 Channel2::Channel2() {
@@ -18,6 +19,7 @@ Channel2::Channel2() {
     this->NR24 = 0xBF;
     this->enabled = false;
     this->DAC = false;
+    this->lengthTimer = 0;
 };
 
 Channel3::Channel3() {
@@ -28,6 +30,7 @@ Channel3::Channel3() {
     this->NR34 = 0xBF;
     this->enabled = false;
     this->DAC = false;
+    this->lengthTimer = 0;
 };
 
 Channel4::Channel4() {
@@ -37,6 +40,7 @@ Channel4::Channel4() {
     this->NR44 = 0xBF;
     this->enabled = false;
     this->DAC = false;
+    this->lengthTimer = 0;
 };
 
 APU::APU() {
@@ -64,7 +68,9 @@ void Channel1::write(uint16_t addr, uint8_t data) {
         case 0xFF10: 
             this->NR10 = data; break;
         case 0xFF11:
-            this->NR11 = data; break;
+            this->NR11 = data;
+            this->lengthTimer = 64 - (data & 0x3F);
+            break;
         case 0xFF12:
             this->NR12 = data;
             this->DAC = (data & 0xF8) != 0;
@@ -85,6 +91,9 @@ void Channel1::write(uint16_t addr, uint8_t data) {
 }
 
 void Channel1::trigger() {
+    if (this->lengthTimer == 0) {
+        this->lengthTimer = 64;
+    }
     if (this->DAC) {
         this->enabled = true;
     }
@@ -104,8 +113,32 @@ void Channel1::reset() {
     this->DAC = false;
 }
 
+void Channel1::step(uint8_t) {
+    // TO-DO
+}
+
 bool Channel1::isEnabled() const {
     return this->enabled;
+}
+
+void Channel1::clockLength() {
+    // Bit 6 of NR14 : Length Enable
+    bool lengthEnabled = (this->NR14 & 0x40) != 0;
+
+    if (lengthEnabled && this->lengthTimer > 0) {
+        this->lengthTimer--;
+        if (this->lengthTimer == 0) {
+            this->enabled = false; // Tone is ended, turn off the channel
+        }
+    }
+}
+
+void Channel1::clockSweep() {
+    // TO-DO
+}
+
+void Channel1::clockEnvelope() {
+    // TO-DO
 }
 
 uint8_t Channel2::read(uint16_t addr) const {
@@ -121,7 +154,9 @@ uint8_t Channel2::read(uint16_t addr) const {
 void Channel2::write(uint16_t addr, uint8_t data) {
     switch (addr) {
         case 0xFF16:
-            this->NR21 = data; break;
+            this->NR21 = data; 
+            this->lengthTimer = 64 - (data & 0x3F);
+            break;
         case 0xFF17:
             this->NR22 = data; 
             this->DAC = (data & 0xF8) != 0;
@@ -142,6 +177,9 @@ void Channel2::write(uint16_t addr, uint8_t data) {
 }
 
 void Channel2::trigger() {
+    if (this->lengthTimer == 0) {
+        this->lengthTimer = 64;
+    }
     if (this->DAC) {
         this->enabled = true;
     }
@@ -160,8 +198,28 @@ void Channel2::reset() {
     this->DAC = false;
 }
 
+void Channel2::step(uint8_t) {
+    // TO-DO
+}
+
 bool Channel2::isEnabled() const {
     return this->enabled;
+}
+
+void Channel2::clockLength() {
+    // Bit 6 of NR14 : Length Enable
+    bool lengthEnabled = (this->NR24 & 0x40) != 0;
+
+    if (lengthEnabled && this->lengthTimer > 0) {
+        this->lengthTimer--;
+        if (this->lengthTimer == 0) {
+            this->enabled = false; // Tone is ended, turn off the channel
+        }
+    }
+}
+
+void Channel2::clockEnvelope() {
+    // TO-DO
 }
 
 uint8_t Channel3::read(uint16_t addr) const {
@@ -185,7 +243,9 @@ void Channel3::write(uint16_t addr, uint8_t data) {
             } 
             break;
         case 0xFF1B:
-            this->NR31 = data; break;
+            this->NR31 = data; 
+            this->lengthTimer = 256 - data;
+            break;
         case 0xFF1C:
             this->NR32 = data; break;
         case 0xFF1D:
@@ -201,6 +261,9 @@ void Channel3::write(uint16_t addr, uint8_t data) {
 }
 
 void Channel3::trigger() {
+    if (this->lengthTimer == 0) {
+        this->lengthTimer = 256;
+    }
     if (this->DAC) {
         this->enabled = true;
     }
@@ -220,8 +283,24 @@ void Channel3::reset() {
     this->DAC = false;
 }
 
+void Channel3::step(uint8_t) {
+    // TO-DO
+}
+
 bool Channel3::isEnabled() const {
     return this->enabled;
+}
+
+void Channel3::clockLength() {
+    // Bit 6 of NR14 : Length Enable
+    bool lengthEnabled = (this->NR34 & 0x40) != 0;
+
+    if (lengthEnabled && this->lengthTimer > 0) {
+        this->lengthTimer--;
+        if (this->lengthTimer == 0) {
+            this->enabled = false; // Tone is ended, turn off the channel
+        }
+    }
 }
 
 uint8_t Channel4::read(uint16_t addr) const {
@@ -237,7 +316,9 @@ uint8_t Channel4::read(uint16_t addr) const {
 void Channel4::write(uint16_t addr, uint8_t data) {
     switch (addr) {
         case 0xFF20:
-            this->NR41 = data; break;
+            this->NR41 = data;
+            this->lengthTimer = 64 - (data & 0x3F);
+            break;
         case 0xFF21:
             this->NR42 = data;
             this->DAC = (data & 0xF8) != 0;
@@ -258,6 +339,9 @@ void Channel4::write(uint16_t addr, uint8_t data) {
 }
 
 void Channel4::trigger() {
+    if (this->lengthTimer == 0) {
+        this->lengthTimer = 64;
+    }
     if (this->DAC) {
         this->enabled = true;
     }
@@ -276,8 +360,28 @@ void Channel4::reset() {
     this->DAC = false;
 }
 
+void Channel4::step(uint8_t) {
+    // TO-DO
+}
+
 bool Channel4::isEnabled() const {
     return this->enabled;
+}
+
+void Channel4::clockLength() {
+    // Bit 6 of NR14 : Length Enable
+    bool lengthEnabled = (this->NR44 & 0x40) != 0;
+
+    if (lengthEnabled && this->lengthTimer > 0) {
+        this->lengthTimer--;
+        if (this->lengthTimer == 0) {
+            this->enabled = false; // Tone is ended, turn off the channel
+        }
+    }
+}
+
+void Channel4::clockEnvelope() {
+    // TO-DO
 }
 
 uint8_t APU::read(uint16_t addr) const {

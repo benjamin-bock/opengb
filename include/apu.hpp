@@ -30,6 +30,8 @@ class Channel1 {
         bool enabled;
         bool DAC;
 
+        uint8_t lengthTimer;
+
 };
 
 // Pulse without period sweep
@@ -58,6 +60,7 @@ class Channel2 {
         bool enabled;
         bool DAC;
 
+        uint8_t lengthTimer;
 };
 
 // Wave output
@@ -84,6 +87,8 @@ class Channel3 {
 
         bool enabled;
         bool DAC;
+
+        uint16_t lengthTimer;
 };
 
 // Noise
@@ -111,6 +116,8 @@ class Channel4 {
 
         bool enabled;
         bool DAC;
+
+        uint8_t lengthTimer;
 };
 
 class APU {
