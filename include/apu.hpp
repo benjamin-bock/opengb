@@ -100,6 +100,7 @@ class APU {
         uint8_t read(uint16_t addr) const;
         void write(uint16_t addr, uint8_t data);
         void reset();
+        void step(uint8_t cycles);
     
     private:
         Channel1 ch1;

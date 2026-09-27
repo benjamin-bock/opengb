@@ -32,12 +32,16 @@ bool Bus::isAddressValid(uint16_t addr) const {
            (addr >= 0xFF00));
 };
 
-PPU& Bus::getPPU() {
-    return this->ppu;
-}
-
 Joypad& Bus::getJoypad() {
     return this->joypad;
+}
+
+APU& Bus::getAPU() {
+    return this->apu;
+}
+
+PPU& Bus::getPPU() {
+    return this->ppu;
 }
 
 uint8_t Bus::read(uint16_t addr) const {
@@ -142,7 +146,7 @@ void Bus::write(uint16_t addr, uint8_t data) {
 void Bus::step(uint8_t cycles) {
     this->timer.step(cycles);
     this->ppu.step(cycles);
-    // this->apu.step(cycles);
+    this->apu.step(cycles);
 }
 
 uint8_t Bus::readIO(uint16_t addr) const {
@@ -169,8 +173,7 @@ uint8_t Bus::readIO(uint16_t addr) const {
         return this->interruptFlag | 0xE0; // bits 5-7 are always 1
     }
     else if (addr >= 0xFF10 && addr <= 0xFF3F) {
-        // APU (not yet implemented)
-        return 0x00;
+        return this->apu.read(addr);
     }
     else if (addr == 0xFF46) {
         return this->dmaRegister;
@@ -232,7 +235,7 @@ void Bus::writeIO(uint16_t addr, uint8_t data) {
         return;
     }
     else if (addr >= 0xFF10 && addr <= 0xFF3F) {
-        // APU (not yet implemented)
+        this->apu.write(addr, data);
         return;
     }
     else if (addr == 0xFF46) {

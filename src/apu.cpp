@@ -369,3 +369,7 @@ void APU::reset() {
     this->NR50 = 0;
     this->NR51 = 0;
 }
+
+void APU::step(uint8_t cycles) {
+    // TO-DO
+}

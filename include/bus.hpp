@@ -4,10 +4,11 @@
 #include <array>
 
 #include "../include/cartridge.hpp"
+#include "../include/joypad.hpp"
 #include "../include/serial.hpp"
 #include "../include/timer.hpp"
+#include "../include/apu.hpp"
 #include "../include/ppu.hpp"
-#include "../include/joypad.hpp"
 
 constexpr size_t ADDRESS_BUS_SIZE = 64 * 1024; // 64 KiB memory table
 constexpr size_t VRAM_SIZE = 8 * 1024; // 8 KiB VRAM
@@ -20,8 +21,9 @@ class Bus {
         Bus(Cartridge& cart);
         ~Bus() = default;
         
-        PPU& getPPU();
         Joypad& getJoypad();
+        APU& getAPU();
+        PPU& getPPU();
 
         uint8_t read(uint16_t addr) const;
         void write(uint16_t addr, uint8_t data);
@@ -29,10 +31,11 @@ class Bus {
         void step(uint8_t cycles);
     private:
         Cartridge& cart;
+        Joypad joypad;
         Serial serial;
         Timer timer;
+        APU apu;
         PPU ppu;
-        Joypad joypad;
 
         bool isAddressValid(uint16_t addr) const;
 
