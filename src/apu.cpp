@@ -10,6 +10,9 @@ Channel1::Channel1() {
     this->enabled = false;
     this->DAC = true;
     this->lengthTimer = 0;
+    this->shadowPeriod = 0;
+    this->sweepTimer = 0;
+    this->sweepEnabled = false;
 };
 
 Channel2::Channel2() {
@@ -43,7 +46,7 @@ Channel4::Channel4() {
     this->lengthTimer = 0;
 };
 
-APU::APU(Bus& bus) {
+APU::APU() {
     this->NR50 = 0x77;
     this->NR51 = 0xF3;
     this->NR52 = 0xF1;
@@ -97,8 +100,17 @@ void Channel1::trigger() {
     if (this->DAC) {
         this->enabled = true;
     }
-    else {
-        this->enabled = false;
+
+    // Sweep reset
+    this->shadowPeriod = ((this->NR14 & 0x07) << 8) | this->NR13;
+    uint8_t pace = (this->NR10 & 0x70) >> 4;
+    uint8_t step = this->NR10 & 0x07;
+    this->sweepTimer = (pace > 0) ? pace : 8;
+    this->sweepEnabled = (pace > 0) || (step > 0);
+
+    // Immediate overflow test if step > 0
+    if (step > 0) {
+        this->calculateSweepPeriod();
     }
 }
 
@@ -121,6 +133,26 @@ bool Channel1::isEnabled() const {
     return this->enabled;
 }
 
+uint16_t Channel1::calculateSweepPeriod() {
+    bool direction = (this->NR10 & 0x08) != 0;
+    uint8_t step = this->NR10 & 0x07;
+
+    uint16_t newPeriod = this->shadowPeriod >> step;
+    if (!direction) { // 0 : Addition
+        newPeriod = this->shadowPeriod + newPeriod;
+    }
+    else { // 1 : Substraction
+        newPeriod = this->shadowPeriod - newPeriod;
+    }
+    
+    // 11-bit overflow
+    if (newPeriod > 0x07FF) {
+        this->enabled = false;
+    }
+
+    return newPeriod;
+}
+
 void Channel1::clockLength() {
     // Bit 6 of NR14 : Length Enable
     bool lengthEnabled = (this->NR14 & 0x40) != 0;
@@ -134,7 +166,32 @@ void Channel1::clockLength() {
 }
 
 void Channel1::clockSweep() {
-    // TO-DO
+    if (this->sweepTimer > 0) {
+        this->sweepTimer--;
+    }
+    if (this->sweepTimer == 0) {
+        uint8_t pace = (this->NR10 & 0x70) >> 4;
+        this->sweepTimer = (pace > 0) ? pace : 8;
+
+        // Sweep only if pace > 0 and enabled
+        if (this->sweepEnabled && pace > 0) {
+            uint16_t newPeriod = this->calculateSweepPeriod();
+
+            // If no overflow and there is an offset (step > 0)
+            uint8_t step = this->NR10 & 0x07;
+            if (newPeriod <= 0x07FF && step > 0) {
+                this->shadowPeriod = newPeriod;
+
+                // Update NR13 and NR14 registers
+                this->NR13 = newPeriod & 0xFF;
+                this->NR14 = (this->NR14 & 0xF8) | ((newPeriod >> 8) & 0x07);
+
+                // DMG executes second overflow test immediately
+                this->calculateSweepPeriod();
+            }
+        }
+    }
+    return;
 }
 
 void Channel1::clockEnvelope() {

@@ -1,7 +1,7 @@
 #include "../include/bus.hpp"
 #include <cstdint>
 
-Bus::Bus(Cartridge& cart) : cart(cart), joypad(*this), timer(*this), apu(*this), ppu(*this) {
+Bus::Bus(Cartridge& cart) : cart(cart), joypad(*this), timer(*this), ppu(*this) {
     this->vram.fill(0x00);
     this->wram0.fill(0x00);
     this->wram1.fill(0x00);
