@@ -72,6 +72,10 @@ class Channel2 {
         bool DAC;
 
         uint8_t lengthTimer;
+
+        // Enveloppe
+        uint8_t currentVolume;
+        uint8_t envelopeTimer;
 };
 
 // Wave output
@@ -129,6 +133,10 @@ class Channel4 {
         bool DAC;
 
         uint8_t lengthTimer;
+        
+        // Enveloppe
+        uint8_t currentVolume;
+        uint8_t envelopeTimer;
 };
 
 class APU {

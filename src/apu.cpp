@@ -115,7 +115,7 @@ void Channel1::trigger() {
 
     // Enveloppe reset
     this->currentVolume = (this->NR12 & 0xF0) >> 4; // Bit 7-4
-    this->envelopeTimer = (this->NR12 & 0x03);      // Bit 2-0
+    this->envelopeTimer = (this->NR12 & 0x07);      // Bit 2-0
 }
 
 void Channel1::reset() {
@@ -199,7 +199,27 @@ void Channel1::clockSweep() {
 }
 
 void Channel1::clockEnvelope() {
-    // TO-DO
+    uint8_t pace = this->NR12 & 0x07;
+    if (pace == 0) {
+        return;
+    }
+    if (this->envelopeTimer > 0) {
+        this->envelopeTimer--;
+    }
+    if (this->envelopeTimer == 0) {
+        this->envelopeTimer = pace;
+
+        if ((this->NR12 & 0x08) != 0) { // 1 : Addition
+            if (this->currentVolume < 15) { // Volume value is between 0 and 15
+                this->currentVolume++;
+            }
+        } 
+        else { // 0 : Substraction
+            if (this->currentVolume > 0) {
+                this->currentVolume--; 
+            }
+        }
+    }
 }
 
 uint8_t Channel2::read(uint16_t addr) const {
@@ -244,9 +264,10 @@ void Channel2::trigger() {
     if (this->DAC) {
         this->enabled = true;
     }
-    else {
-        this->enabled = false;
-    }
+
+    // Enveloppe reset
+    this->currentVolume = (this->NR22 & 0xF0) >> 4; // Bit 7-4
+    this->envelopeTimer = (this->NR22 & 0x07);      // Bit 2-0
 }
 
 void Channel2::reset() {
@@ -268,7 +289,7 @@ bool Channel2::isEnabled() const {
 }
 
 void Channel2::clockLength() {
-    // Bit 6 of NR14 : Length Enable
+    // Bit 6 of NR24 : Length Enable
     bool lengthEnabled = (this->NR24 & 0x40) != 0;
 
     if (lengthEnabled && this->lengthTimer > 0) {
@@ -280,7 +301,27 @@ void Channel2::clockLength() {
 }
 
 void Channel2::clockEnvelope() {
-    // TO-DO
+    uint8_t pace = this->NR22 & 0x07;
+    if (pace == 0) {
+        return;
+    }
+    if (this->envelopeTimer > 0) {
+        this->envelopeTimer--;
+    }
+    if (this->envelopeTimer == 0) {
+        this->envelopeTimer = pace;
+
+        if ((this->NR22 & 0x08) != 0) { // 1 : Addition
+            if (this->currentVolume < 15) { // Volume value is between 0 and 15
+                this->currentVolume++;
+            }
+        } 
+        else { // 0 : Substraction
+            if (this->currentVolume > 0) {
+                this->currentVolume--; 
+            }
+        }
+    }
 }
 
 uint8_t Channel3::read(uint16_t addr) const {
@@ -406,9 +447,10 @@ void Channel4::trigger() {
     if (this->DAC) {
         this->enabled = true;
     }
-    else {
-        this->enabled = false;
-    }
+    
+    // Enveloppe reset
+    this->currentVolume = (this->NR42 & 0xF0) >> 4; // Bit 7-4
+    this->envelopeTimer = (this->NR42 & 0x07);      // Bit 2-0
 }
 
 void Channel4::reset() {
