@@ -20,6 +20,7 @@ class Channel1 {
         void clockSweep();
         void clockEnvelope();
         
+        uint8_t getSample() const;
     private:
         uint8_t NR10; // $FF10 Sweep
         uint8_t NR11; // $FF11 Duty & Length
@@ -43,6 +44,11 @@ class Channel1 {
         uint8_t currentVolume;
         uint8_t envelopeTimer;
 
+        int frequencyTimer;
+        uint8_t dutyStep;
+
+        uint16_t getPeriod() const;
+
 };
 
 // Pulse without period sweep
@@ -61,6 +67,7 @@ class Channel2 {
         void clockLength();
         void clockEnvelope();
 
+        uint8_t getSample() const;
     private:
                       // no sweep
         uint8_t NR21; // $FF16 Duty & Length
@@ -76,6 +83,11 @@ class Channel2 {
         // Enveloppe
         uint8_t currentVolume;
         uint8_t envelopeTimer;
+
+        int frequencyTimer;
+        uint8_t dutyStep;
+
+        uint16_t getPeriod() const;
 };
 
 // Wave output
@@ -93,6 +105,7 @@ class Channel3 {
         // Clock methods
         void clockLength();
         
+        uint8_t getSample();
     private:
         uint8_t NR30; // $FF1A DAC Enable
         uint8_t NR31; // $FF1B Length Timer [write-only]
@@ -104,6 +117,11 @@ class Channel3 {
         bool DAC;
 
         uint16_t lengthTimer;
+
+        int frequencyTimer;
+        uint8_t sampleIndex;
+
+        uint16_t getPeriod() const;
 };
 
 // Noise
@@ -122,6 +140,7 @@ class Channel4 {
         void clockLength();
         void clockEnvelope();
 
+        uint8_t getSample();
     private:
                       // no sweep
         uint8_t NR41; // $FF20 Length Timer [write-only]
@@ -137,6 +156,12 @@ class Channel4 {
         // Enveloppe
         uint8_t currentVolume;
         uint8_t envelopeTimer;
+
+        int frequencyTimer;
+        uint16_t LFSR;
+
+        uint16_t getPeriod() const;
+
 };
 
 class APU {
