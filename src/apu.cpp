@@ -504,17 +504,18 @@ uint16_t Channel3::getPeriod() const {
     return (2048 - frequency) * 2;
 }
 
-uint8_t Channel3::getSample() {
+uint8_t Channel3::getSample(const std::array<uint8_t, 16>& waveRam) const {
     if (!this->enabled || !this->DAC) {
         return 0; // Silence if channel is off
     }
+    uint8_t byte = waveRam[this->sampleIndex / 2];
     uint8_t sample = 0;
 
     if (this->sampleIndex % 2 == 0) { // is Even
-        sample = (this->waveRam[this->sampleIndex] & 0xF0) >> 4;
+        sample = (byte & 0xF0) >> 4;
     }
     else { // is Odd
-        sample = this->waveRam[this->sampleIndex] & 0x0F;
+        sample = byte & 0x0F;
     }
 
     switch ((this->NR32 & 0x60) >> 5) {
@@ -575,6 +576,8 @@ void Channel4::trigger() {
 
     // Reload frequency timer
     this->frequencyTimer = this->getPeriod();
+
+    this->LFSR = 0x7FFF;
 }
 
 void Channel4::reset() {
@@ -593,6 +596,17 @@ void Channel4::step(uint8_t cycles) {
     if (this->frequencyTimer <= 0) {
         // Reload timer for next pulse
         this->frequencyTimer += this->getPeriod();
+
+        bool bit0 = (this->LFSR & 0x0001);
+        bool bit1 = (this->LFSR & 0x0002) >> 1;
+        bool copy = bit0 == bit1; // LFSR0 NXOR LFSR1
+        
+        this->LFSR = (this->LFSR & 0x7FFF) | (copy << 15); // replace bit15 by copy
+        
+        if (this->NR43 & 0x08) { // short mode (7-bit LFSR)
+            this->LFSR = (this->LFSR & 0xFF7F) | (copy << 7); // replace bit7 by copy
+        }
+        this->LFSR >>= 1; // Right shift
     }
 }
 
@@ -637,27 +651,21 @@ void Channel4::clockEnvelope() {
 }
 
 uint16_t Channel4::getPeriod() const {
-    uint16_t frequency = ((this->NR44 & 0x07) << 8) | this->NR43;
-    return (2048 - frequency) * 4;
+    uint8_t divider = this->NR43 & 0x07;
+    uint8_t shift = (this->NR43 & 0xF0) >> 4;
+    
+    uint16_t period = (divider == 0) ? 8 : (divider * 16); // period = 16 * divider * 2^shift
+
+    return period << shift;
 }
 
 uint8_t Channel4::getSample() {
     if (!this->enabled || !this->DAC) {
         return 0; // Silence if channel is off
     }
-    bool bit0 = (this->LFSR & 0x0001);
-    bool bit1 = (this->LFSR & 0x0002) >> 1;
+    bool bit0 = this->LFSR & 0x0001;
 
-    bool copy = bit0 == bit1; // LFSR0 NXOR LFSR1
-
-    this->LFSR = (this->LFSR & 0x7FFF) | (copy << 15); // replace bit15 by copy
-
-    if (this->NR43 & 0x08) { // short mode (7-bit LFSR)
-        this->LFSR = (this->LFSR & 0xFF7F) | (copy << 7); // replace bit7 by copy
-    }
-    this->LFSR >>= 1; // Right shift
-
-    return bit0 ? this->currentVolume : 0;
+    return bit0 ? 0 : this->currentVolume;
 }
 
 uint8_t APU::read(uint16_t addr) const {

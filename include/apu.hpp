@@ -105,7 +105,7 @@ class Channel3 {
         // Clock methods
         void clockLength();
         
-        uint8_t getSample();
+        uint8_t getSample(const std::array<uint8_t, 16>& waveRam) const;
     private:
         uint8_t NR30; // $FF1A DAC Enable
         uint8_t NR31; // $FF1B Length Timer [write-only]
