@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
     constexpr int gbHeight = 144;
     constexpr int scale = 4;
 
+    // Initialise graphical window
     SDL_Window* window = SDL_CreateWindow(
         "opengb",
         SDL_WINDOWPOS_CENTERED,
@@ -88,6 +89,18 @@ int main(int argc, char* argv[]) {
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
     SDL_RenderSetLogicalSize(renderer, gbWidth, gbHeight);
+
+    // Initialise sound card
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO); 
+
+    SDL_AudioSpec want{}, have{};
+    want.freq = 44100;
+    want.format = AUDIO_F32SYS; // Float 32 bits (-1.0 to 1.0)
+    want.channels = 2;          // Stereo
+    want.samples = 1024;
+
+    SDL_AudioDeviceID audioDevice = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);
+    SDL_PauseAudioDevice(audioDevice, 0); // Start sound card
     
     std::cout << "Loaded ROM: " << cart.getTitle() << std::endl;
     std::cout << "Starting the emulator..." << std::endl;
@@ -107,6 +120,18 @@ int main(int argc, char* argv[]) {
             SDL_RenderCopy(renderer, texture, nullptr, nullptr);
             SDL_RenderPresent(renderer);
             
+            // Send accumulated sound to the sound card
+            auto& buffer = bus.getAPU().getAudioBuffer();
+            if (!buffer.empty()) {
+                SDL_QueueAudio(audioDevice, buffer.data(), buffer.size() * sizeof(float));
+                bus.getAPU().clearAudioBuffer();
+            }
+
+            // Sync the framerate to ~59.73 FPS
+            while (SDL_GetQueuedAudioSize(audioDevice) > 44100 * 2 * sizeof(float) * 0.04) {
+                SDL_Delay(1);
+            }        
+
             // Event manager
             SDL_Event event;
             while (SDL_PollEvent(&event)) {

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <vector>
 
 // Pulse with period sweep
 class Channel1 {
@@ -173,22 +174,31 @@ class APU {
         void reset();
         void step(uint8_t cycles);
 
-        // Clock methods
-        void clockLength();
-        void clockSweep();
-        void clockEnvelope();
-    
+        const std::vector<float>& getAudioBuffer() const;
+        void clearAudioBuffer();
+        
     private:
         Channel1 ch1;
         Channel2 ch2;
         Channel3 ch3;
         Channel4 ch4;
-
+        
         uint8_t NR50;
         uint8_t NR51;
         uint8_t NR52;
         std::array<uint8_t, 16> waveRam; // $FF30-FF3F
-
+        
         uint16_t frameSequencerCycles;
         uint8_t frameSequencerStep;
-};
+        
+        uint8_t sampleCycles;
+        
+        std::vector<float> audioBuffer;
+
+        // Clock methods
+        void clockLength();
+        void clockSweep();
+        void clockEnvelope();
+
+        void mixAudio();
+    };

@@ -806,6 +806,20 @@ void APU::step(uint8_t cycles) {
 
         this->frameSequencerStep = (this->frameSequencerStep + 1) & 0x07; // Loop from 0 to 7
     }
+
+    this->sampleCycles += cycles;
+    if (this->sampleCycles >= 95) { // 4 194 304 Hz / 44 100 Hz ≈ 95 cycles
+        this->sampleCycles -= 95;
+        this->mixAudio(); // <-- On mixe un seul échantillon ici !
+    }
+}
+
+const std::vector<float>& APU::getAudioBuffer() const {
+    return this->audioBuffer;
+}
+
+void APU::clearAudioBuffer() {
+    this->audioBuffer.clear();
 }
 
 void APU::clockLength() {
@@ -823,4 +837,42 @@ void APU::clockEnvelope() {
     this->ch1.clockEnvelope();
     this->ch2.clockEnvelope();
     this->ch4.clockEnvelope(); // Channel 3 doesn't have envelope
+}
+
+void APU::mixAudio() {
+    // get the 4 tunes
+    uint8_t s1 = this->ch1.getSample();
+    uint8_t s2 = this->ch2.getSample();
+    uint8_t s3 = this->ch3.getSample(this->waveRam);
+    uint8_t s4 = this->ch4.getSample();
+
+    // sound goes right or left?
+    int right = 0;
+    int left = 0;
+
+    // Right bits 3-0
+    if (this->NR51 & 0x01) right += s1;
+    if (this->NR51 & 0x02) right += s2;
+    if (this->NR51 & 0x04) right += s3;
+    if (this->NR51 & 0x08) right += s4;
+    
+    // Left bits 7-4
+    if (this->NR51 & 0x10) left += s1;
+    if (this->NR51 & 0x20) left += s2;
+    if (this->NR51 & 0x40) left += s3;
+    if (this->NR51 & 0x80) left += s4;
+
+    // Apply master volume
+    uint8_t volRight = (this->NR50 & 0x07) + 1;
+    uint8_t volLeft = ((this->NR50 >> 4) & 0x07) + 1;
+
+    right *= volRight;
+    left *= volLeft;
+
+    // Normalize for the sound card
+    float rightSample = (right / 240.0f) - 1.0f; // a float between -1.0 and 1.0
+    float leftSample = (left / 240.0f) - 1.0f;
+
+    this->audioBuffer.push_back(leftSample);
+    this->audioBuffer.push_back(rightSample);
 }
