@@ -66,7 +66,7 @@ uint8_t Channel1::read(uint16_t addr) const {
     }
 }
 
-void Channel1::write(uint16_t addr, uint8_t data) {
+void Channel1::write(uint16_t addr, uint8_t data, uint8_t frameSequencerStep) {
     switch (addr) {
         case 0xFF10: 
             this->NR10 = data; break;
@@ -83,12 +83,35 @@ void Channel1::write(uint16_t addr, uint8_t data) {
             break;
         case 0xFF13:
             this->NR13 = data; break;
-        case 0xFF14:
-            this->NR14 = data; 
-            if (data & 0x80) {
+        case 0xFF14: {
+            bool wasLengthEnabled = (this->NR14 & 0x40) != 0;
+            bool trigger = (data & 0x80) != 0;
+            bool lengthEnable = (data & 0x40) != 0;
+
+            if (trigger && this->lengthTimer == 0) {
+                this->lengthTimer = 64;
+                wasLengthEnabled = false;
+            }
+
+            if (!wasLengthEnabled && lengthEnable && (frameSequencerStep % 2 != 0)) {
+                if (this->lengthTimer > 0) {
+                    this->lengthTimer--;
+                    if (this->lengthTimer == 0) {
+                        if (!trigger) {
+                            this->enabled = false;
+                        } else {
+                            this->lengthTimer = 63;
+                        }
+                    }
+                }
+            }
+
+            this->NR14 = data;
+            if (trigger) {
                 this->trigger();
             }
             break;
+        }
         default: break;
     }
 }
@@ -276,7 +299,7 @@ uint8_t Channel2::read(uint16_t addr) const {
     }
 }
 
-void Channel2::write(uint16_t addr, uint8_t data) {
+void Channel2::write(uint16_t addr, uint8_t data, uint8_t frameSequencerStep) {
     switch (addr) {
         case 0xFF16:
             this->NR21 = data; 
@@ -291,12 +314,35 @@ void Channel2::write(uint16_t addr, uint8_t data) {
             break;
         case 0xFF18:
             this->NR23 = data; break;
-        case 0xFF19:
-            this->NR24 = data; 
-                if (data & 0x80) {
-                    this->trigger();
+        case 0xFF19: {
+            bool wasLengthEnabled = (this->NR24 & 0x40) != 0;
+            bool trigger = (data & 0x80) != 0;
+            bool lengthEnable = (data & 0x40) != 0;
+
+            if (trigger && this->lengthTimer == 0) {
+                this->lengthTimer = 64;
+                wasLengthEnabled = false;
+            }
+
+            if (!wasLengthEnabled && lengthEnable && (frameSequencerStep % 2 != 0)) {
+                if (this->lengthTimer > 0) {
+                    this->lengthTimer--;
+                    if (this->lengthTimer == 0) {
+                        if (!trigger) {
+                            this->enabled = false;
+                        } else {
+                            this->lengthTimer = 63;
+                        }
+                    }
                 }
-                break;
+            }
+
+            this->NR24 = data;
+            if (trigger) {
+                this->trigger();
+            }
+            break;
+        }
         default: break;
     }
 }
@@ -420,7 +466,7 @@ uint8_t Channel3::read(uint16_t addr) const {
     }
 }
 
-void Channel3::write(uint16_t addr, uint8_t data) {
+void Channel3::write(uint16_t addr, uint8_t data, uint8_t frameSequencerStep) {
     switch (addr) {
         case 0xFF1A: 
             this->NR30 = data; 
@@ -437,12 +483,35 @@ void Channel3::write(uint16_t addr, uint8_t data) {
             this->NR32 = data; break;
         case 0xFF1D:
             this->NR33 = data; break;
-        case 0xFF1E:
-            this->NR34 = data; 
-            if (data & 0x80) {
+        case 0xFF1E: {
+            bool wasLengthEnabled = (this->NR34 & 0x40) != 0;
+            bool trigger = (data & 0x80) != 0;
+            bool lengthEnable = (data & 0x40) != 0;
+
+            if (trigger && this->lengthTimer == 0) {
+                this->lengthTimer = 256;
+                wasLengthEnabled = false;
+            }
+
+            if (!wasLengthEnabled && lengthEnable && (frameSequencerStep % 2 != 0)) {
+                if (this->lengthTimer > 0) {
+                    this->lengthTimer--;
+                    if (this->lengthTimer == 0) {
+                        if (!trigger) {
+                            this->enabled = false;
+                        } else {
+                            this->lengthTimer = 255;
+                        }
+                    }
+                }
+            }
+
+            this->NR34 = data;
+            if (trigger) {
                 this->trigger();
             }
             break;
+        }
         default: break;
     }
 }
@@ -537,7 +606,7 @@ uint8_t Channel4::read(uint16_t addr) const {
     }
 }
 
-void Channel4::write(uint16_t addr, uint8_t data) {
+void Channel4::write(uint16_t addr, uint8_t data, uint8_t frameSequencerStep) {
     switch (addr) {
         case 0xFF20:
             this->NR41 = data;
@@ -552,12 +621,35 @@ void Channel4::write(uint16_t addr, uint8_t data) {
             break;
         case 0xFF22:
             this->NR43 = data; break;
-        case 0xFF23:
-            this->NR44 = data; 
-            if (data & 0x80) {
+        case 0xFF23: {
+            bool wasLengthEnabled = (this->NR44 & 0x40) != 0;
+            bool trigger = (data & 0x80) != 0;
+            bool lengthEnable = (data & 0x40) != 0;
+
+            if (trigger && this->lengthTimer == 0) {
+                this->lengthTimer = 64;
+                wasLengthEnabled = false;
+            }
+
+            if (!wasLengthEnabled && lengthEnable && (frameSequencerStep % 2 != 0)) {
+                if (this->lengthTimer > 0) {
+                    this->lengthTimer--;
+                    if (this->lengthTimer == 0) {
+                        if (!trigger) {
+                            this->enabled = false;
+                        } else {
+                            this->lengthTimer = 63;
+                        }
+                    }
+                }
+            }
+
+            this->NR44 = data;
+            if (trigger) {
                 this->trigger();
             }
             break;
+        }
         default: break;
     }
 }
@@ -707,19 +799,19 @@ void APU::write(uint16_t addr, uint8_t data) {
 
     // Channels 1,2,3,4
     if (addr >= 0xFF10 && addr <= 0xFF14) {
-        this->ch1.write(addr, data);
+        this->ch1.write(addr, data, this->frameSequencerStep);
         return;
     }
     if (addr >= 0xFF16 && addr <= 0xFF19) {
-        this->ch2.write(addr, data);
+        this->ch2.write(addr, data, this->frameSequencerStep);
         return;
     }
     if (addr >= 0xFF1A && addr <= 0xFF1E) {
-        this->ch3.write(addr, data);
+        this->ch3.write(addr, data, this->frameSequencerStep);
         return;
     }
     if (addr >= 0xFF20 && addr <= 0xFF23) {
-        this->ch4.write(addr, data);
+        this->ch4.write(addr, data, this->frameSequencerStep);
         return;
     }
 

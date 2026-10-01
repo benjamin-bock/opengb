@@ -10,7 +10,7 @@ class Channel1 {
         Channel1();
     
         uint8_t read(uint16_t addr) const;
-        void write(uint16_t addr, uint8_t value);
+        void write(uint16_t addr, uint8_t value, uint8_t frameSequencerStep);
         void trigger();
         void reset();
         void step(uint8_t cycles);
@@ -58,7 +58,7 @@ class Channel2 {
         Channel2();
         
         uint8_t read(uint16_t addr) const;
-        void write(uint16_t addr, uint8_t value);
+        void write(uint16_t addr, uint8_t value, uint8_t frameSequencerStep);
         void trigger();
         void reset();
         void step(uint8_t cycles);
@@ -97,7 +97,7 @@ class Channel3 {
         Channel3();
         
         uint8_t read(uint16_t addr) const;
-        void write(uint16_t addr, uint8_t value);
+        void write(uint16_t addr, uint8_t value, uint8_t frameSequencerStep);
         void trigger();
         void reset();
         void step(uint8_t cycles);
@@ -131,7 +131,7 @@ class Channel4 {
         Channel4();
         
         uint8_t read(uint16_t addr) const;
-        void write(uint16_t addr, uint8_t value);
+        void write(uint16_t addr, uint8_t value, uint8_t frameSequencerStep);
         void trigger();
         void reset();
         void step(uint8_t cycles);

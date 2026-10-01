@@ -20,3 +20,7 @@ cpu_instrs/source/11-op a,(hl).gb : Passed
 instr_timing/instr_timing.gb : Passed
 ```
 
+# Sound
+```bash
+dmg_sound/dmg_sound.gb : Passed
+```
