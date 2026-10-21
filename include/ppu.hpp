@@ -67,6 +67,9 @@ class PPU {
         // flag to allow frame generation
         bool frameReady;
 
+        // true when the scanline has been rendered during this scanline's HBlank
+        bool scanlineRendered = false;
+
         // LCDC register
         uint8_t LCDC;
 

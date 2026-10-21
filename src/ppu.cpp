@@ -55,6 +55,7 @@ void PPU::step(uint8_t cycles) {
         this->windowLineCounter = 0;
         this->windowYTriggered = false;
         this->cycleCounter = 0;
+        this->scanlineRendered = false;
         this->setMode(0);
         return;
     }
@@ -63,6 +64,7 @@ void PPU::step(uint8_t cycles) {
         // reset the counter
         this->cycleCounter -= SCANLINE_LENGTH;
         this->LY++;
+        this->scanlineRendered = false;
 
         // Trigger VBlank at rising edge of 144
         if (this->LY == 144) {
@@ -98,7 +100,10 @@ void PPU::step(uint8_t cycles) {
         // Mode 0
         else {
             // Horizontal blank
-            this->renderScanline();
+            if (!this->scanlineRendered) {
+                this->renderScanline();
+                this->scanlineRendered = true;
+            }
             this->setMode(0);
         }
     }
