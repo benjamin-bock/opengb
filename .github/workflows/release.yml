@@ -79,8 +79,8 @@ jobs:
         run: |
           $prefix = "$env:VCPKG_ROOT\installed\x64-windows"
           $env:PATH = "$prefix\bin;$env:PATH"
-          $sdl2Cflags = "-I$prefix\include\SDL2 -I$prefix\include"
-          $sdl2Libs = "-L$prefix\lib -mwindows -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf"
+          $sdl2Cflags = "-I$prefix\include\SDL2 -I$prefix\include -DSDL_MAIN_HANDLED"
+          $sdl2Libs = "-L$prefix\lib -lSDL2 -lSDL2_ttf"
           make clean
           make -j 4 "SDL2_CFLAGS=$sdl2Cflags" "SDL2_LIBS=$sdl2Libs"
 
