@@ -50,7 +50,7 @@ jobs:
         run: |
           $prefix = "C:\msys64\mingw64"
           if (-not (Test-Path "$prefix\bin\g++.exe")) { throw "MSYS2 mingw64 toolchain not found at $prefix" }
-          C:\msys64\usr\bin\pacman.exe -Sy --noconfirm mingw-w64-x86_64-SDL2
+          C:\msys64\usr\bin\pacman.exe -Sy --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-SDL2
           if ($LASTEXITCODE -ne 0) { throw "pacman install failed" }
           Write-Output "MSYS2_PREFIX=$prefix" | Out-File -FilePath $env:GITHUB_ENV -Append
 
