@@ -73,7 +73,7 @@ jobs:
           $env:PATH = "$prefix\bin;$env:PATH"
           $gxx = "$prefix\bin\g++.exe"
           make clean
-          make -j 4 CXX="$gxx" "SDL2_CFLAGS=-I$prefix\include\SDL2 -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -Wl,-Bstatic -lSDL2 -Wl,-Bdynamic -static-libgcc -static-libstdc++ -mwindows -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32"
+          make -j 4 CXX="$gxx" "SDL2_CFLAGS=-I$prefix\include\SDL2 -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -Wl,-Bstatic -lSDL2 -Wl,-Bdynamic -static -static-libgcc -static-libstdc++ -mwindows -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32"
 
       - name: Package (Linux)
         if: matrix.pack == 'bin'
