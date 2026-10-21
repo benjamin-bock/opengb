@@ -11,13 +11,20 @@ else
 endif
 
 # Compiler and Flags
+# Apple clang does not know -std=c++23, use -std=c++2b instead
+ifeq ($(UNAME_S),Darwin)
+    CXX_STD ?= -std=c++2b
+else
+    CXX_STD ?= -std=c++23
+endif
 
-CXXFLAGS ?= -Wall -Wextra -std=c++23 -O3
+CXXFLAGS ?= -Wall -Wextra $(CXX_STD) -O3 -Iinclude
 LDFLAGS  ?=
 
-# SDL2 + SDL2_ttf (Homebrew / system install via pkg-config)
-SDL2_CFLAGS := $(shell pkg-config --cflags sdl2 SDL2_ttf 2>/dev/null || pkg-config --cflags sdl2)
-SDL2_LIBS   := $(shell pkg-config --libs sdl2 SDL2_ttf 2>/dev/null || pkg-config --libs sdl2)
+# SDL2 (Homebrew / system install via pkg-config)
+# Can be overridden on the command line: make SDL2_CFLAGS=... SDL2_LIBS=...
+SDL2_CFLAGS ?= $(shell pkg-config --cflags sdl2 2>/dev/null)
+SDL2_LIBS   ?= $(shell pkg-config --libs sdl2 2>/dev/null)
 ifeq ($(strip $(SDL2_LIBS)),)
     # Fallback when pkg-config is unavailable or finds nothing
     ifeq ($(UNAME_S),Darwin)

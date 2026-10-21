@@ -19,22 +19,16 @@ jobs:
         include:
           - name: macOS-ARM
             os: macos-14
-            artifact: opengb-macos-arm64
-            bindir: build/bin
-            ext: ''
-            pack: tar
+            asset: OpenGB-macOS-ARM64.dmg
+            pack: app
           - name: Windows
             os: windows-latest
-            artifact: opengb-windows-x64
-            bindir: build/bin
-            ext: .exe
-            pack: zip
+            asset: opengb.exe
+            pack: exe
           - name: Linux
             os: ubuntu-22.04
-            artifact: opengb-linux-x64
-            bindir: build/bin
-            ext: ''
-            pack: tar
+            asset: opengb-linux-x64
+            pack: bin
 
     steps:
       - name: Checkout
@@ -42,28 +36,28 @@ jobs:
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install sdl2 sdl2_ttf
+        run: brew install sdl2
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev pkg-config
+          sudo apt-get install -y libsdl2-dev pkg-config
 
-      - name: Install dependencies (Windows)
+      - name: Install SDL2 (Windows, MSYS2)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg "$env:VCPKG_ROOT"
-          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
-          & "$env:VCPKG_ROOT\vcpkg.exe" install "sdl2:x64-windows" "sdl2-ttf:x64-windows"
-          $env:VCPKG_DEFAULT_TRIPLET = 'x64-windows'
-          Write-Output "VCPKG_INSTALLED=$env:VCPKG_ROOT\installed\x64-windows"
+          $prefix = "C:\msys64\mingw64"
+          C:\msys64\usr\bin\pacman.exe -Sy --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-SDL2
+          if ($LASTEXITCODE -ne 0) { throw "pacman install failed" }
+          if (-not (Test-Path "$prefix\bin\g++.exe")) { throw "MSYS2 mingw64 toolchain still missing after install" }
+          Write-Output "MSYS2_PREFIX=$prefix" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
         run: |
-          export PKG_CONFIG_PATH="$(brew --prefix sdl2)/lib/pkgconfig:$(brew --prefix sdl2_ttf)/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export PKG_CONFIG_PATH="$(brew --prefix sdl2)/lib/pkgconfig:$PKG_CONFIG_PATH"
           make clean && make -j4
 
       - name: Build (Linux)
@@ -75,42 +69,83 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PKG_CONFIG_PATH = "$env:VCPKG_ROOT\installed\x64-windows\lib\pkgconfig"
-          $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
-          $sdl2Inc = "$env:VCPKG_ROOT\installed\x64-windows\include"
-          if (Test-Path "$sdl2Inc\SDL2\SDL.h") { $env:CXXFLAGS = "-I$sdl2Inc\SDL2 -I$sdl2Inc" }
+          $prefix = $env:MSYS2_PREFIX
+          $env:PATH = "$prefix\bin;$env:PATH"
+          $gxx = "$prefix\bin\g++.exe"
           make clean
-          make -j 4 CXX=clang++
+          make -j 4 CXX="$gxx" "SDL2_CFLAGS=-I$prefix\include\SDL2 -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -Wl,-Bstatic -lSDL2 -Wl,-Bdynamic -static -static-libgcc -static-libstdc++ -mwindows -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32"
 
-      - name: Package (tar)
-        if: matrix.pack == 'tar'
+      - name: Package (Linux)
+        if: matrix.pack == 'bin'
         run: |
           mkdir -p dist
-          cp ${{ matrix.bindir }}/opengb${{ matrix.ext }} dist/
-          cp README.md LICENSE dist/ 2>/dev/null || true
-          tar -czf dist/${{ matrix.artifact }}.tar.gz -C dist opengb${{ matrix.ext }} README.md LICENSE 2>/dev/null || tar -czf dist/${{ matrix.artifact }}.tar.gz -C dist opengb${{ matrix.ext }}
-          ls -la dist
+          cp build/bin/opengb dist/${{ matrix.asset }}
 
-      - name: Package (zip)
-        if: matrix.pack == 'zip'
+      - name: Package (Windows)
+        if: matrix.pack == 'exe'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item "${{ matrix.bindir }}/opengb${{ matrix.ext }}" dist/
-          $sdlDlls = Get-ChildItem "$env:VCPKG_ROOT\installed\x64-windows\bin\*.dll" -ErrorAction SilentlyContinue
-          if ($sdlDlls) { Copy-Item $sdlDlls dist/ }
-          Copy-Item README.md dist/ -ErrorAction SilentlyContinue
-          Copy-Item LICENSE dist/ -ErrorAction SilentlyContinue
-          Compress-Archive -Path dist/* -DestinationPath dist/${{ matrix.artifact }}.zip -Force
+          Copy-Item build/bin/opengb.exe dist/${{ matrix.asset }}
           Get-ChildItem dist
+
+      - name: Package (macOS)
+        if: matrix.pack == 'app'
+        run: |
+          set -e
+          app="OpenGB.app"
+          fw="$app/Contents/Frameworks"
+          mkdir -p "$app/Contents/MacOS" "$fw" "$app/Contents/Resources"
+          cp build/bin/opengb "$app/Contents/MacOS/opengb"
+          install_name_tool -add_rpath "@executable_path/../Frameworks" "$app/Contents/MacOS/opengb"
+
+          cat > "$app/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>OpenGB</string>
+            <key>CFBundleDisplayName</key><string>OpenGB</string>
+            <key>CFBundleExecutable</key><string>opengb</string>
+            <key>CFBundleIdentifier</key><string>com.benjaminbock.opengb</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>CFBundleVersion</key><string>1</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          PLIST
+
+          # Copy every Homebrew dylib dependency into the bundle (transitive closure)
+          changed=1
+          while [ "$changed" -gt 0 ]; do
+            changed=0
+            for f in "$app/Contents/MacOS/opengb" "$fw"/*.dylib; do
+              [ -f "$f" ] || continue
+              for dep in $(otool -L "$f" | awk '{print $1}' | grep '/opt/homebrew/'); do
+                base=$(basename "$dep")
+                if [ ! -f "$fw/$base" ]; then
+                  cp "$dep" "$fw/$base"
+                  install_name_tool -id "@rpath/$base" "$fw/$base"
+                  changed=1
+                fi
+                install_name_tool -change "$dep" "@rpath/$base" "$f" 2>/dev/null || true
+              done
+            done
+          done
+
+          codesign --force --deep -s - "$app"
+
+          mkdir -p dist
+          hdiutil create -volname OpenGB -srcfolder "$app" -format UDZO dist/${{ matrix.asset }}
+          ls -la dist
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: |
-            dist/*.tar.gz
-            dist/*.zip
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
 
   release:
     name: Create release
@@ -130,5 +165,4 @@ jobs:
           draft: true
           generate_release_notes: true
           files: |
-            artifacts/*.tar.gz
-            artifacts/*.zip
+            artifacts/*

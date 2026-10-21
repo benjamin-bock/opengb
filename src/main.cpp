@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
 #include "../include/cartridge.hpp"
@@ -24,6 +25,8 @@ bool translateKey(SDL_Keycode sym, JoypadKey& outKey) {
 }
 
 int main(int argc, char* argv[]) {
+    SDL_SetMainReady();
+
     std::string romPath;
     float initialVolume = 0.8f;
 
