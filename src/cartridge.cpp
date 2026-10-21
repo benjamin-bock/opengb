@@ -315,8 +315,7 @@ uint8_t Cartridge::read(uint16_t addr) const {
         // bank 0 area
         uint32_t bank = 0;
         if (this->mbcType == MBCType::MBC1 && this->bankingMode) {
-            bank = static_cast<uint32_t>(this->romBank2) << 5;
-            bank %= romBanks;
+            bank = (static_cast<uint32_t>(this->romBank2) << 5) % romBanks;
         }
         uint32_t offset = bank * 0x4000 + addr;
         if (offset < this->data.size()) {
@@ -329,6 +328,9 @@ uint8_t Cartridge::read(uint16_t addr) const {
         uint32_t bank = this->romBank;
         if (this->mbcType == MBCType::MBC1) {
             bank = (this->romBank & 0x1F) | (static_cast<uint32_t>(this->romBank2) << 5);
+            if ((bank & 0x1F) == 0) {
+                bank |= 0x01;
+            }
         }
         bank %= romBanks;
         uint32_t offset = bank * 0x4000 + (addr - 0x4000);
@@ -363,14 +365,14 @@ void Cartridge::write(uint16_t addr, uint8_t data) {
         return;
     }
     else if (addr < 0x3000) {
-        // ROM bank low bits
+        // ROM bank low bits (MBC5: bits 0-7; others: whole register)
         switch (this->mbcType) {
             case MBCType::MBC1: {
                 uint8_t bank = data & 0x1F;
                 if (bank == 0) {
                     bank = 1;
                 }
-                this->romBank = bank;
+                this->romBank = (this->romBank & 0x1FE0) | bank;
                 break;
             }
             case MBCType::MBC2: {
@@ -378,7 +380,7 @@ void Cartridge::write(uint16_t addr, uint8_t data) {
                 if (bank == 0) {
                     bank = 1;
                 }
-                this->romBank = bank;
+                this->romBank = (this->romBank & 0xFFF0) | bank;
                 break;
             }
             case MBCType::MBC3: {
@@ -386,15 +388,11 @@ void Cartridge::write(uint16_t addr, uint8_t data) {
                 if (bank == 0) {
                     bank = 1;
                 }
-                this->romBank = bank;
+                this->romBank = (this->romBank & 0xFF80) | bank;
                 break;
             }
             case MBCType::MBC5: {
-                uint8_t bank = data & 0xFF;
-                if (bank == 0) {
-                    bank = 1;
-                }
-                this->romBank = bank;
+                this->romBank = (this->romBank & 0x100) | (data & 0xFF);
                 break;
             }
             default:
@@ -403,9 +401,39 @@ void Cartridge::write(uint16_t addr, uint8_t data) {
         return;
     }
     else if (addr < 0x4000) {
-        // MBC5: bit 8 of the ROM bank number
-        if (this->mbcType == MBCType::MBC5) {
-            this->romBank = (this->romBank & 0xFF) | ((data & 0x01) << 8);
+        // MBC1/MBC2/MBC3 decode the whole 0x2000-0x3FFF range as the bank register
+        switch (this->mbcType) {
+            case MBCType::MBC1: {
+                uint8_t bank = data & 0x1F;
+                if (bank == 0) {
+                    bank = 1;
+                }
+                this->romBank = (this->romBank & 0x1FE0) | bank;
+                break;
+            }
+            case MBCType::MBC2: {
+                uint8_t bank = data & 0x0F;
+                if (bank == 0) {
+                    bank = 1;
+                }
+                this->romBank = (this->romBank & 0xFFF0) | bank;
+                break;
+            }
+            case MBCType::MBC3: {
+                uint8_t bank = data & 0x7F;
+                if (bank == 0) {
+                    bank = 1;
+                }
+                this->romBank = (this->romBank & 0xFF80) | bank;
+                break;
+            }
+            case MBCType::MBC5: {
+                // MBC5: bit 8 of the ROM bank number
+                this->romBank = (this->romBank & 0xFF) | ((data & 0x01) << 8);
+                break;
+            }
+            default:
+                break;
         }
         return;
     }
@@ -416,7 +444,12 @@ void Cartridge::write(uint16_t addr, uint8_t data) {
                 this->romBank2 = data & 0x03;
                 break;
             case MBCType::MBC3:
-                this->ramBank = data & 0x03;
+                if ((data & 0x0F) >= 0x08) {
+                    this->rtcRegister = data & 0x0F;
+                } else {
+                    this->ramBank = data & 0x03;
+                    this->rtcRegister = 0;
+                }
                 break;
             case MBCType::MBC5:
                 this->ramBank = data & 0x0F;
@@ -427,12 +460,9 @@ void Cartridge::write(uint16_t addr, uint8_t data) {
         return;
     }
     else if (addr < 0x8000) {
-        // MBC1 banking mode / MBC3 RTC register latch
+        // MBC1 banking mode / MBC3 RTC latch clock (data 0x00 then 0x01)
         if (this->mbcType == MBCType::MBC1) {
             this->bankingMode = (data & 0x01) != 0;
-        }
-        else if (this->mbcType == MBCType::MBC3) {
-            this->rtcRegister = data & 0x0F;
         }
         return;
     }
