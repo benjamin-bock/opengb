@@ -7,6 +7,7 @@
 #include "../include/cpu.hpp"
 #include "../include/timer.hpp"
 #include "../include/joypad.hpp"
+#include "../include/launcher.hpp"
 
 bool translateKey(SDL_Keycode sym, JoypadKey& outKey) {
     switch (sym) {
@@ -23,13 +24,20 @@ bool translateKey(SDL_Keycode sym, JoypadKey& outKey) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << "<path_to_rom.gb>" << std::endl;
-        return 1;
+    std::string romPath;
+    float initialVolume = 0.8f;
+
+    if (argc >= 2) {
+        romPath = argv[1];
+    } else {
+        auto cfg = runLauncher();
+        if (!cfg) {
+            return 0;
+        }
+        romPath = cfg->romPath;
+        initialVolume = cfg->volume;
     }
-    
-    std::string romPath = argv[1];
-    
+
     // Instantiate the cartridge and load the ROM
     Cartridge cart(romPath);
     cart.load();
@@ -40,7 +48,7 @@ int main(int argc, char* argv[]) {
     // Instantiate the CPU with a reference to the bus
     CPU cpu(bus);
 
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << std::endl;
         return 1;
     }
@@ -90,9 +98,10 @@ int main(int argc, char* argv[]) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
     SDL_RenderSetLogicalSize(renderer, gbWidth, gbHeight);
 
-    // Initialise sound card
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO); 
+    // Apply the volume chosen in the launcher
+    bus.getAPU().setVolume(initialVolume);
 
+    // Initialise sound card
     SDL_AudioSpec want{}, have{};
     want.freq = 44100;
     want.format = AUDIO_F32SYS; // Float 32 bits (-1.0 to 1.0)
@@ -100,8 +109,12 @@ int main(int argc, char* argv[]) {
     want.samples = 1024;
 
     SDL_AudioDeviceID audioDevice = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);
-    SDL_PauseAudioDevice(audioDevice, 0); // Start sound card
-    
+    if (audioDevice == 0) {
+        std::cerr << "SDL_OpenAudioDevice failed: " << SDL_GetError() << std::endl;
+    } else {
+        SDL_PauseAudioDevice(audioDevice, 0); // Start sound card
+    }
+
     std::cout << "Loaded ROM: " << cart.getTitle() << std::endl;
     std::cout << "Starting the emulator..." << std::endl;
 
@@ -122,15 +135,17 @@ int main(int argc, char* argv[]) {
             
             // Send accumulated sound to the sound card
             auto& buffer = bus.getAPU().getAudioBuffer();
-            if (!buffer.empty()) {
+            if (audioDevice != 0 && !buffer.empty()) {
                 SDL_QueueAudio(audioDevice, buffer.data(), buffer.size() * sizeof(float));
-                bus.getAPU().clearAudioBuffer();
             }
+            bus.getAPU().clearAudioBuffer();
 
             // Sync the framerate to ~59.73 FPS
-            while (SDL_GetQueuedAudioSize(audioDevice) > 44100 * 2 * sizeof(float) * 0.04) {
-                SDL_Delay(1);
-            }        
+            if (audioDevice != 0) {
+                while (SDL_GetQueuedAudioSize(audioDevice) > 44100 * 2 * sizeof(float) * 0.04) {
+                    SDL_Delay(1);
+                }
+            }
 
             // Event manager
             SDL_Event event;

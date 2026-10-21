@@ -176,6 +176,9 @@ class APU {
 
         const std::vector<float>& getAudioBuffer() const;
         void clearAudioBuffer();
+
+        void setVolume(float volume);
+        float getVolume() const;
         
     private:
         Channel1 ch1;
@@ -194,6 +197,7 @@ class APU {
         uint8_t sampleCycles;
         
         std::vector<float> audioBuffer;
+        float masterVolume = 1.0f;
 
         // Clock methods
         void clockLength();

@@ -15,9 +15,20 @@ endif
 CXXFLAGS ?= -Wall -Wextra -std=c++23 -O3
 LDFLAGS  ?=
 
-# SDL2 (Homebrew / system install via pkg-config)
-SDL2_CFLAGS := $(shell pkg-config --cflags sdl2)
-SDL2_LIBS   := $(shell pkg-config --libs sdl2)
+# SDL2 + SDL2_ttf (Homebrew / system install via pkg-config)
+SDL2_CFLAGS := $(shell pkg-config --cflags sdl2 SDL2_ttf 2>/dev/null || pkg-config --cflags sdl2)
+SDL2_LIBS   := $(shell pkg-config --libs sdl2 SDL2_ttf 2>/dev/null || pkg-config --libs sdl2)
+ifeq ($(strip $(SDL2_LIBS)),)
+    # Fallback when pkg-config is unavailable or finds nothing
+    ifeq ($(UNAME_S),Darwin)
+        BREW_PREFIX := $(shell brew --prefix 2>/dev/null)
+        ifeq ($(strip $(BREW_PREFIX)),)
+            BREW_PREFIX := /opt/homebrew
+        endif
+        SDL2_CFLAGS := -I$(BREW_PREFIX)/include/SDL2 -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks
+        SDL2_LIBS   := -L$(BREW_PREFIX)/lib -lSDL2 -lSDL2_ttf
+    endif
+endif
 CXXFLAGS    += $(SDL2_CFLAGS)
 LDFLAGS     += $(SDL2_LIBS)
 
