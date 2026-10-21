@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
@@ -73,13 +73,24 @@ jobs:
           $env:PATH = "$prefix\bin;$env:PATH"
           $gxx = "$prefix\bin\g++.exe"
           make clean
-          make -j 4 CXX="$gxx" "SDL2_CFLAGS=-I$prefix\include\SDL2 -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -Wl,-Bstatic -lSDL2 -Wl,-Bdynamic -static -static-libgcc -static-libstdc++ -mwindows -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32"
+          make -j 4 CXX="$gxx" "SDL2_CFLAGS=-I$prefix\include\SDL2 -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -static -lSDL2 -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32 -mwindows"
 
       - name: Package (Linux)
         if: matrix.pack == 'bin'
         run: |
           mkdir -p dist
           cp build/bin/opengb dist/${{ matrix.asset }}
+
+      - name: Verify static link (Windows)
+        if: matrix.pack == 'exe'
+        shell: pwsh
+        run: |
+          $prefix = $env:MSYS2_PREFIX
+          $env:PATH = "$prefix\bin;$env:PATH"
+          $imports = & $prefix\bin\objdump.exe -p build/bin/opengb.exe | Select-String 'DLL Name'
+          $imports | ForEach-Object { Write-Output $_ }
+          $bad = $imports | Where-Object { $_ -match 'libstdc\+\+|libgcc|SDL2\.dll|libwinpthread' }
+          if ($bad) { throw "Non-static DLL imports detected: $bad" }
 
       - name: Package (Windows)
         if: matrix.pack == 'exe'
@@ -142,7 +153,7 @@ jobs:
           ls -la dist
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset }}
           path: dist/${{ matrix.asset }}
@@ -154,7 +165,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
