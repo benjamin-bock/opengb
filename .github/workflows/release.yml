@@ -44,21 +44,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsdl2-dev pkg-config
 
-      - name: Build static SDL2 (Windows)
+      - name: Install SDL2 (Windows, MSYS2)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:MSYS2_PREFIX = "C:\msys64\mingw64"
-          if (-not (Test-Path "$env:MSYS2_PREFIX\bin\gcc.exe")) {
-            $env:MSYS2_PREFIX = (Get-Command g++.exe).Source | Split-Path | Split-Path
-          }
-          # Use the MSYS2 package manager when available, otherwise build from source
-          if (Test-Path "C:\msys64\usr\bin\pacman.exe") {
-            C:\msys64\usr\bin\pacman.exe -Sy --noconfirm mingw-w64-x86_64-SDL2
-          } else {
-            Write-Output "pacman unavailable, fetching prebuilt static SDL2"
-          }
-          Write-Output "MSYS2_PREFIX=$env:MSYS2_PREFIX" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $prefix = "C:\msys64\mingw64"
+          if (-not (Test-Path "$prefix\bin\g++.exe")) { throw "MSYS2 mingw64 toolchain not found at $prefix" }
+          C:\msys64\usr\bin\pacman.exe -Sy --noconfirm mingw-w64-x86_64-SDL2
+          if ($LASTEXITCODE -ne 0) { throw "pacman install failed" }
+          Write-Output "MSYS2_PREFIX=$prefix" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
@@ -77,8 +71,9 @@ jobs:
         run: |
           $prefix = $env:MSYS2_PREFIX
           $env:PATH = "$prefix\bin;$env:PATH"
+          $gxx = "$prefix\bin\g++.exe"
           make clean
-          make -j 4 "SDL2_CFLAGS=-I$prefix\include\SDL2 -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -Wl,-Bstatic -lSDL2 -Wl,-Bdynamic -static-libgcc -static-libstdc++ -mwindows -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32"
+          make -j 4 CXX="$gxx" "SDL2_CFLAGS=-I$prefix\include\SDL2 -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -Wl,-Bstatic -lSDL2 -Wl,-Bdynamic -static-libgcc -static-libstdc++ -mwindows -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32"
 
       - name: Package (Linux)
         if: matrix.pack == 'bin'
