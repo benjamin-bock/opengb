@@ -19,22 +19,16 @@ jobs:
         include:
           - name: macOS-ARM
             os: macos-14
-            artifact: opengb-macos-arm64
-            bindir: build/bin
-            ext: ''
-            pack: tar
+            asset: opengb-macos-arm64.dmg
+            pack: app
           - name: Windows
             os: windows-latest
-            artifact: opengb-windows-x64
-            bindir: build/bin
-            ext: .exe
-            pack: zip
+            asset: opengb.exe
+            pack: exe
           - name: Linux
             os: ubuntu-22.04
-            artifact: opengb-linux-x64
-            bindir: build/bin
-            ext: ''
-            pack: tar
+            asset: opengb-linux-x64
+            pack: bin
 
     steps:
       - name: Checkout
@@ -58,7 +52,8 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg "$env:VCPKG_ROOT"
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
-          & "$env:VCPKG_ROOT\vcpkg.exe" install "sdl2:x64-windows" "sdl2-ttf:x64-windows"
+          # Static SDL so the shipped .exe is standalone (no DLLs needed)
+          & "$env:VCPKG_ROOT\vcpkg.exe" install "sdl2:x64-windows-static-md" "sdl2-ttf:x64-windows-static-md"
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
@@ -77,68 +72,91 @@ jobs:
         env:
           VCPKG_ROOT: ${{ runner.temp }}\vcpkg
         run: |
-          $prefix = "$env:VCPKG_ROOT\installed\x64-windows"
+          $prefix = "$env:VCPKG_ROOT\installed\x64-windows-static-md"
           $env:PATH = "$prefix\bin;$env:PATH"
-          $sdl2Cflags = "-I$prefix\include\SDL2 -I$prefix\include -DSDL_MAIN_HANDLED"
-          $sdl2Libs = "-L$prefix\lib -static-libgcc -static-libstdc++ -lSDL2 -lSDL2_ttf"
-          make clean
-          make -j 4 "SDL2_CFLAGS=$sdl2Cflags" "SDL2_LIBS=$sdl2Libs"
-          # Fail early if the exe still depends on missing runtime DLLs
-          $mingwBin = (Get-Command g++).Source | Split-Path
-          & "$mingwBin\objdump.exe" -p build/bin/opengb.exe | Select-String "DLL Name"
+          $env:PKG_CONFIG_PATH = "$prefix\lib\pkgconfig"
+          if ((Get-Command pkg-config -ErrorAction SilentlyContinue) -and (pkg-config --exists sdl2 SDL2_ttf)) {
+            make clean
+            make -j 4 "SDL2_CFLAGS=-I$prefix\include\SDL2 -I$prefix\include -DSDL_MAIN_HANDLED"
+          } else {
+            make clean
+            make -j 4 "SDL2_CFLAGS=-I$prefix\include\SDL2 -I$prefix\include -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -lSDL2_ttf -lfreetype -lharfbuzz -lbrotlidec -lbrotlicommon -lpng16 -lz -lbz2 -lSDL2 -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32"
+          }
 
-      - name: Package (tar)
-        if: matrix.pack == 'tar'
+      - name: Package (Linux)
+        if: matrix.pack == 'bin'
         run: |
           mkdir -p dist
-          cp ${{ matrix.bindir }}/opengb${{ matrix.ext }} dist/
-          cp README.md LICENSE dist/ 2>/dev/null || true
-          tar -czf dist/${{ matrix.artifact }}.tar.gz -C dist opengb${{ matrix.ext }} README.md LICENSE 2>/dev/null || tar -czf dist/${{ matrix.artifact }}.tar.gz -C dist opengb${{ matrix.ext }}
+          cp build/bin/opengb dist/${{ matrix.asset }}
           ls -la dist
 
-      - name: Package (zip)
-        if: matrix.pack == 'zip'
+      - name: Package (Windows)
+        if: matrix.pack == 'exe'
         shell: pwsh
-        env:
-          VCPKG_ROOT: ${{ runner.temp }}\vcpkg
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item "${{ matrix.bindir }}/opengb${{ matrix.ext }}" dist/
-          # Bundle every runtime DLL the exe and SDL depend on
-          $mingwBin = (Get-Command g++).Source | Split-Path
-          $needed = & "$mingwBin\objdump.exe" -p "${{ matrix.bindir }}/opengb.exe" | Select-String 'DLL Name: (.+)$' | ForEach-Object { $_.Matches[0].Groups[1].Value }
-          $searchDirs = @("$env:VCPKG_ROOT\installed\x64-windows\bin", $mingwBin)
-          foreach ($dll in $needed) {
-            if ($dll -in @('kernel32.dll','user32.dll','gdi32.dll','winmm.dll','ole32.dll','oleaut32.dll','imm32.dll','advapi32.dll','shell32.dll','version.dll','setupapi.dll','ws2_32.dll','dbghelp.dll','bcrypt.dll','ntdll.dll','comctl32.dll','shlwapi.dll','dinput8.dll','xinput1_4.dll','hid.dll','powrprof.dll','secur32.dll')) { continue }
-            foreach ($dir in $searchDirs) {
-              $src = Join-Path $dir $dll
-              if (Test-Path $src) { Copy-Item $src dist/; break }
-            }
-          }
-          # Resolve second-level dependencies of the bundled DLLs
-          $bundled = Get-ChildItem dist/*.dll
-          foreach ($b in $bundled) {
-            $depNames = & "$mingwBin\objdump.exe" -p $b.FullName | Select-String 'DLL Name: (.+)$' | ForEach-Object { $_.Matches[0].Groups[1].Value }
-            foreach ($dll in $depNames) {
-              if ((Test-Path "dist/$dll") -or ($dll -in @('kernel32.dll','user32.dll','gdi32.dll','winmm.dll','ole32.dll','oleaut32.dll','imm32.dll','advapi32.dll','shell32.dll','version.dll','setupapi.dll','ws2_32.dll','dbghelp.dll','bcrypt.dll','ntdll.dll','comctl32.dll','shlwapi.dll','dinput8.dll','xinput1_4.dll','hid.dll','powrprof.dll','secur32.dll'))) { continue }
-              foreach ($dir in $searchDirs) {
-                $src = Join-Path $dir $dll
-                if (Test-Path $src) { Copy-Item $src dist/; break }
-              }
-            }
-          }
-          Copy-Item README.md dist/ -ErrorAction SilentlyContinue
-          Copy-Item LICENSE dist/ -ErrorAction SilentlyContinue
-          Compress-Archive -Path dist/* -DestinationPath dist/${{ matrix.artifact }}.zip -Force
+          Copy-Item build/bin/opengb.exe dist/${{ matrix.asset }}
           Get-ChildItem dist
+
+      - name: Package (macOS)
+        if: matrix.pack == 'app'
+        run: |
+          set -e
+          app="OpenGB.app"
+          fw="$app/Contents/Frameworks"
+          mkdir -p "$app/Contents/MacOS" "$fw" "$app/Contents/Resources"
+          cp build/bin/opengb "$app/Contents/MacOS/opengb"
+          install_name_tool -add_rpath "@executable_path/../Frameworks" "$app/Contents/MacOS/opengb"
+
+          cat > "$app/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>OpenGB</string>
+            <key>CFBundleDisplayName</key><string>OpenGB</string>
+            <key>CFBundleExecutable</key><string>opengb</string>
+            <key>CFBundleIdentifier</key><string>com.benjaminbock.opengb</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>CFBundleVersion</key><string>1</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>NSPrincipalClass</key><string>NSApplication</string>
+          </dict>
+          </plist>
+          PLIST
+
+          # Copy every Homebrew dylib dependency into the bundle (transitive closure)
+          changed=1
+          while [ "$changed" -gt 0 ]; do
+            changed=0
+            for f in "$app/Contents/MacOS/opengb" "$fw"/*.dylib; do
+              [ -f "$f" ] || continue
+              for dep in $(otool -L "$f" | awk '{print $1}' | grep '/homebrew/'); do
+                base=$(basename "$dep")
+                if [ ! -f "$fw/$base" ]; then
+                  cp "$dep" "$fw/$base"
+                  install_name_tool -id "@rpath/$base" "$fw/$base"
+                  install_name_tool -add_rpath "@loader_path" "$fw/$base" 2>/dev/null || true
+                  changed=1
+                fi
+                install_name_tool -change "$dep" "@rpath/$base" "$f" 2>/dev/null || true
+              done
+            done
+          done
+
+          codesign --force --deep -s - "$app"
+
+          mkdir -p dist
+          hdiutil create -volname OpenGB -srcfolder "$app" -format UDZO dist/${{ matrix.asset }}
+          ls -la dist
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: |
-            dist/*.tar.gz
-            dist/*.zip
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
 
   release:
     name: Create release
@@ -158,5 +176,4 @@ jobs:
           draft: true
           generate_release_notes: true
           files: |
-            artifacts/*.tar.gz
-            artifacts/*.zip
+            artifacts/*
