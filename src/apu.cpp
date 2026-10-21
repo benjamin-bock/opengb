@@ -965,6 +965,16 @@ void APU::mixAudio() {
     float rightSample = (right / 240.0f) - 1.0f; // a float between -1.0 and 1.0
     float leftSample = (left / 240.0f) - 1.0f;
 
-    this->audioBuffer.push_back(leftSample);
-    this->audioBuffer.push_back(rightSample);
+    this->audioBuffer.push_back(leftSample * this->masterVolume);
+    this->audioBuffer.push_back(rightSample * this->masterVolume);
+}
+
+void APU::setVolume(float volume) {
+    if (volume < 0.0f) volume = 0.0f;
+    if (volume > 1.0f) volume = 1.0f;
+    this->masterVolume = volume;
+}
+
+float APU::getVolume() const {
+    return this->masterVolume;
 }

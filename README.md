@@ -27,6 +27,7 @@ ROMs that fit in 32 KiB with no memory-bank controller (for example many test RO
 
 - A C++23 compiler (`g++` on Linux/WSL, `clang++` on macOS)
 - [SDL2](https://www.libsdl.org/) development files
+- [SDL2_ttf](https://github.com/libsdl-org/SDL_ttf) development files (for the launcher UI)
 - `pkg-config`
 - `make`
 
@@ -35,25 +36,25 @@ ROMs that fit in 32 KiB with no memory-bank controller (for example many test RO
 **Debian / Ubuntu / WSL**
 
 ```bash
-sudo apt install build-essential libsdl2-dev pkg-config
+sudo apt install build-essential libsdl2-dev libsdl2-ttf-dev pkg-config
 ```
 
 **Fedora**
 
 ```bash
-sudo dnf install gcc-c++ SDL2-devel pkgconf-pkg-config
+sudo dnf install gcc-c++ SDL2-devel SDL2_ttf-devel pkgconf-pkg-config
 ```
 
 **Arch**
 
 ```bash
-sudo pacman -S base-devel sdl2 pkgconf
+sudo pacman -S base-devel sdl2 sdl2_ttf pkgconf
 ```
 
 **macOS (Homebrew)**
 
 ```bash
-brew install sdl2 pkg-config
+brew install sdl2 sdl2_ttf pkg-config
 ```
 
 ## Build
@@ -69,6 +70,16 @@ make clean   # remove build/
 ```
 
 ## Usage
+
+Run without arguments to open the launcher:
+
+```bash
+./build/bin/opengb
+```
+
+The launcher lets you pick a ROM (type the path, **Parcourir...** to browse, or drag & drop a `.gb`/`.gbc` file), set the sound volume, and start the emulator with **Lancer**.
+
+You can also skip the launcher:
 
 ```bash
 ./build/bin/opengb path/to/rom.gb
@@ -86,11 +97,21 @@ The window is 160×144 pixels scaled 4×. Close it to quit.
 | Start | `Left Shift` |
 | Select | `Enter` |
 
+### Controls
+
+| Game Boy | Keyboard |
+| --- | --- |
+| D-pad | `W` `A` `S` `D` |
+| A | `K` |
+| B | `J` |
+| Start | `Left Shift` |
+| Select | `Enter` |
+
 ## Project layout
 
 ```
-include/     Public headers (CPU, PPU, bus, cartridge, timer, joypad, serial)
-src/         Implementations and SDL entry point
+include/     Public headers (CPU, PPU, bus, cartridge, timer, joypad, serial, launcher)
+src/         Implementations, launcher UI, and SDL entry point
 roms/        Local ROMs (gitignored — not shipped)
 build/       Object files and the emulator binary
 ```
@@ -110,7 +131,7 @@ Details live in [`BLARGG_TEST_CHECKLIST.md`](BLARGG_TEST_CHECKLIST.md).
 2. Frame limiter / VSync so games run at ~59.7 Hz
 3. APU (sound)
 
-Packaging (`.deb`, `.dmg`, `.exe`) is extra, after the core is playable.
+Packaging: pushing a tag `v*` (e.g. `v0.1.0`) triggers the [release workflow](.github/workflows/release.yml), which builds **macOS (Apple Silicon)**, **Windows (x64)**, and **Linux (x64)** binaries and publishes a draft GitHub release with the archives attached.
 
 ## Contributing
 
