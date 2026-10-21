@@ -1,5 +1,7 @@
 #include "../include/cartridge.hpp"
 
+#include <algorithm>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 
@@ -11,7 +13,65 @@ static constexpr std::array<uint8_t, 48> NINTENDO_LOGO_REF = {
 
 Cartridge::Cartridge(const std::string& filepath) {
     this->filepath = filepath;
-    this->ram.fill(0x00);
+    this->mbcType = MBCType::None;
+    this->ramEnabled = false;
+    this->bankingMode = false;
+    this->romBank = 1;
+    this->romBank2 = 0;
+    this->ramBank = 0;
+    this->rtcRegister = 0;
+    this->rtc.fill(0x00);
+}
+
+Cartridge::~Cartridge() {
+    this->saveRAM();
+}
+
+void Cartridge::detectMBC() {
+    const uint8_t type = this->data[0x0147];
+
+    switch (type) {
+        case 0x00:
+            this->mbcType = MBCType::None;
+            break;
+        case 0x01:
+        case 0x02:
+        case 0x03:
+            this->mbcType = MBCType::MBC1;
+            break;
+        case 0x05:
+        case 0x06:
+            this->mbcType = MBCType::MBC2;
+            break;
+        case 0x0F:
+        case 0x10:
+        case 0x11:
+        case 0x12:
+        case 0x13:
+            this->mbcType = MBCType::MBC3;
+            break;
+        case 0x19:
+        case 0x1A:
+        case 0x1B:
+        case 0x1C:
+        case 0x1D:
+        case 0x1E:
+            this->mbcType = MBCType::MBC5;
+            break;
+        default:
+            this->mbcType = MBCType::None;
+            std::cerr << "Warning: unknown cartridge type 0x" << std::hex
+                      << static_cast<int>(type) << ", falling back to no MBC" << std::endl;
+            break;
+    }
+}
+
+std::string Cartridge::saveFilePath() const {
+    const size_t dot = this->filepath.find_last_of('.');
+    if (dot != std::string::npos && dot != 0 && this->filepath.find_last_of("/\\") < dot) {
+        return this->filepath.substr(0, dot) + ".sav";
+    }
+    return this->filepath + ".sav";
 }
 
 void Cartridge::load() {
@@ -38,6 +98,43 @@ void Cartridge::load() {
     if (!file) {
         throw std::runtime_error("Unable to read the file: " + this->filepath);
     }
+
+    this->detectMBC();
+
+    // MBC2 always has 512 x 4 bits of on-cartridge RAM
+    uint32_t ramSize = (this->mbcType == MBCType::MBC2) ? 512 : this->getRAMSize();
+    if (this->mbcType == MBCType::MBC2 && this->getRAMSize() == 0) {
+        ramSize = 512;
+    }
+    this->ram.resize(ramSize, 0x00);
+
+    this->loadRAM();
+}
+
+void Cartridge::loadRAM() {
+    std::ifstream file(this->saveFilePath(), std::ios::binary);
+    if (!file) {
+        return; // no save file yet
+    }
+
+    file.read(reinterpret_cast<char*>(this->ram.data()), this->ram.size());
+    if (file.gcount() < static_cast<std::streamsize>(this->ram.size())) {
+        std::cerr << "Warning: save file smaller than expected, missing data filled with 0x00" << std::endl;
+    }
+}
+
+void Cartridge::saveRAM() {
+    if (this->ram.empty()) {
+        return;
+    }
+
+    std::ofstream file(this->saveFilePath(), std::ios::binary | std::ios::trunc);
+    if (!file) {
+        std::cerr << "Warning: unable to write the save file: " << this->saveFilePath() << std::endl;
+        return;
+    }
+
+    file.write(reinterpret_cast<const char*>(this->ram.data()), this->ram.size());
 }
 
 bool Cartridge::nintendoLogo() {
@@ -168,13 +265,86 @@ bool Cartridge::globalChecksum() {
     return ((this->data[0x014E] << 8) | this->data[0x014F]) == 0x00;
 }
 
+uint8_t Cartridge::readRAM(uint16_t addr) const {
+    if (this->ram.empty()) {
+        return 0xFF;
+    }
+
+    if (this->mbcType == MBCType::MBC2) {
+        // MBC2 RAM is 512 bytes of 4-bit values
+        return this->ram[(addr - 0xA000) & 0x1FF] & 0x0F;
+    }
+
+    uint8_t bank = this->ramBank;
+    if (this->mbcType == MBCType::MBC1 && this->bankingMode) {
+        bank = this->romBank2;
+    }
+    uint32_t ramAddr = static_cast<uint32_t>(bank) * 0x2000 + (addr - 0xA000);
+    if (ramAddr >= this->ram.size()) {
+        return 0xFF;
+    }
+    return this->ram[ramAddr];
+}
+
+void Cartridge::writeRAM(uint16_t addr, uint8_t data) {
+    if (this->ram.empty()) {
+        return;
+    }
+
+    if (this->mbcType == MBCType::MBC2) {
+        this->ram[(addr - 0xA000) & 0x1FF] = data & 0x0F;
+        return;
+    }
+
+    uint8_t bank = this->ramBank;
+    if (this->mbcType == MBCType::MBC1 && this->bankingMode) {
+        bank = this->romBank2;
+    }
+    uint32_t ramAddr = static_cast<uint32_t>(bank) * 0x2000 + (addr - 0xA000);
+    if (ramAddr >= this->ram.size()) {
+        return;
+    }
+    this->ram[ramAddr] = data;
+}
+
 uint8_t Cartridge::read(uint16_t addr) const {
+    const uint32_t romBanks = this->data.size() / 0x4000;
+
     // read a byte from the cartridge
-    if (addr < 0x8000 && addr < this->data.size()) {
-        return this->data[addr];
+    if (addr < 0x4000) {
+        // bank 0 area
+        uint32_t bank = 0;
+        if (this->mbcType == MBCType::MBC1 && this->bankingMode) {
+            bank = static_cast<uint32_t>(this->romBank2) << 5;
+            bank %= romBanks;
+        }
+        uint32_t offset = bank * 0x4000 + addr;
+        if (offset < this->data.size()) {
+            return this->data[offset];
+        }
+        return 0xFF;
+    }
+    else if (addr < 0x8000) {
+        // switchable bank area
+        uint32_t bank = this->romBank;
+        if (this->mbcType == MBCType::MBC1) {
+            bank = (this->romBank & 0x1F) | (static_cast<uint32_t>(this->romBank2) << 5);
+        }
+        bank %= romBanks;
+        uint32_t offset = bank * 0x4000 + (addr - 0x4000);
+        if (offset < this->data.size()) {
+            return this->data[offset];
+        }
+        return 0xFF;
     }
     else if (addr >= 0xA000 && addr <= 0xBFFF) {
-        return this->ram[addr - 0xA000];
+        if (!this->ramEnabled && this->mbcType != MBCType::None) {
+            return 0xFF;
+        }
+        if (this->mbcType == MBCType::MBC3 && this->rtcRegister >= 0x08 && this->rtcRegister <= 0x0C) {
+            return this->rtc[this->rtcRegister - 0x08];
+        }
+        return this->readRAM(addr);
     }
     else {
         return 0xFF; // Unmapped address
@@ -183,21 +353,115 @@ uint8_t Cartridge::read(uint16_t addr) const {
 
 void Cartridge::write(uint16_t addr, uint8_t data) {
     // write a byte to the cartridge
-    if (addr < 0x8000) {
-        return; // ROM is read only
+    if (addr < 0x2000) {
+        // RAM enable / disable
+        if (this->mbcType == MBCType::MBC2) {
+            this->ramEnabled = (data & 0x0F) == 0x0A;
+        } else if (this->mbcType != MBCType::None) {
+            this->ramEnabled = (data & 0x0F) == 0x0A;
+        }
+        return;
+    }
+    else if (addr < 0x3000) {
+        // ROM bank low bits
+        switch (this->mbcType) {
+            case MBCType::MBC1: {
+                uint8_t bank = data & 0x1F;
+                if (bank == 0) {
+                    bank = 1;
+                }
+                this->romBank = bank;
+                break;
+            }
+            case MBCType::MBC2: {
+                uint8_t bank = data & 0x0F;
+                if (bank == 0) {
+                    bank = 1;
+                }
+                this->romBank = bank;
+                break;
+            }
+            case MBCType::MBC3: {
+                uint8_t bank = data & 0x7F;
+                if (bank == 0) {
+                    bank = 1;
+                }
+                this->romBank = bank;
+                break;
+            }
+            case MBCType::MBC5: {
+                uint8_t bank = data & 0xFF;
+                if (bank == 0) {
+                    bank = 1;
+                }
+                this->romBank = bank;
+                break;
+            }
+            default:
+                break;
+        }
+        return;
+    }
+    else if (addr < 0x4000) {
+        // MBC5: bit 8 of the ROM bank number
+        if (this->mbcType == MBCType::MBC5) {
+            this->romBank = (this->romBank & 0xFF) | ((data & 0x01) << 8);
+        }
+        return;
+    }
+    else if (addr < 0x6000) {
+        // RAM bank / ROM bank high bits
+        switch (this->mbcType) {
+            case MBCType::MBC1:
+                this->romBank2 = data & 0x03;
+                break;
+            case MBCType::MBC3:
+                this->ramBank = data & 0x03;
+                break;
+            case MBCType::MBC5:
+                this->ramBank = data & 0x0F;
+                break;
+            default:
+                break;
+        }
+        return;
+    }
+    else if (addr < 0x8000) {
+        // MBC1 banking mode / MBC3 RTC register latch
+        if (this->mbcType == MBCType::MBC1) {
+            this->bankingMode = (data & 0x01) != 0;
+        }
+        else if (this->mbcType == MBCType::MBC3) {
+            this->rtcRegister = data & 0x0F;
+        }
+        return;
     }
     else if (addr >= 0xA000 && addr <= 0xBFFF) {
-        this->ram[addr - 0xA000] = data;
-        if (addr == 0xA000) {
-            if (data == 0x00) {
-                std::cout << "\n\n=====> RESULT: PASSED! <=====\n" << std::endl;
-            } else if (data != 0x80) {
-                std::cout << "\n\n=====> RESULT: FAILED #" << static_cast<int>(data) << " <=====\n" << std::endl;
+        if (this->mbcType == MBCType::None) {
+            // no MBC: direct RAM access, used by Blargg tests for their result output
+            if (addr == 0xA000) {
+                if (data == 0x00) {
+                    std::cout << "\n\n=====> RESULT: PASSED! <=====\n" << std::endl;
+                } else if (data != 0x80) {
+                    std::cout << "\n\n=====> RESULT: FAILED #" << static_cast<int>(data) << " <=====\n" << std::endl;
+                }
             }
         }
+        if (!this->ramEnabled && this->mbcType != MBCType::None) {
+            return;
+        }
+        if (this->mbcType == MBCType::MBC3 && this->rtcRegister >= 0x08 && this->rtcRegister <= 0x0C) {
+            this->rtc[this->rtcRegister - 0x08] = data;
+            return;
+        }
+        this->writeRAM(addr, data);
         return;
     }
     else {
         return; // Unmapped address
     }
+}
+
+MBCType Cartridge::getMBCType() const {
+    return this->mbcType;
 }

@@ -15,13 +15,13 @@ OpenGB is a learning project: a cycle-stepped Sharp SM83 CPU, PPU, timer, joypad
 | Timer | Working |
 | Joypad | Working |
 | Serial | Stub (enough for Blargg output) |
-| Cartridge | ROM + 8 KiB RAM, **no MBC banking** |
+| Cartridge | ROM + MBC1/MBC2/MBC3/MBC5 banking (RTC non persisté) |
 | APU (sound) | Not started |
 | Frame limiter / VSync | Not started |
-| Save files (`.sav`) | Not started |
+| Save files (`.sav`) | Working — battery RAM persisted next to the ROM |
 | Game Boy Color | Not a goal yet |
 
-ROMs that fit in 32 KiB with no memory-bank controller (for example many test ROMs and early titles) are the ones most likely to run well. Banked cartridges will not map correctly until MBCs land.
+ROMs up to 8 MiB with an MBC1, MBC2, MBC3 or MBC5 memory-bank controller now map correctly. Battery-backed cartridge RAM is loaded from and written back to a `.sav` file next to the ROM (written on exit).
 
 ## Requirements
 
