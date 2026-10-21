@@ -77,10 +77,12 @@ jobs:
         env:
           VCPKG_ROOT: ${{ runner.temp }}\vcpkg
         run: |
-          $env:PKG_CONFIG_PATH = "$env:VCPKG_ROOT\installed\x64-windows\lib\pkgconfig"
-          $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+          $prefix = "$env:VCPKG_ROOT\installed\x64-windows"
+          $env:PATH = "$prefix\bin;$env:PATH"
+          $sdl2Cflags = "-I$prefix\include\SDL2 -I$prefix\include"
+          $sdl2Libs = "-L$prefix\lib -lSDL2 -lSDL2_ttf"
           make clean
-          make -j 4
+          make -j 4 "SDL2_CFLAGS=$sdl2Cflags" "SDL2_LIBS=$sdl2Libs"
 
       - name: Package (tar)
         if: matrix.pack == 'tar'
