@@ -21,10 +21,10 @@ endif
 CXXFLAGS ?= -Wall -Wextra $(CXX_STD) -O3 -Iinclude
 LDFLAGS  ?=
 
-# SDL2 + SDL2_ttf (Homebrew / system install via pkg-config)
+# SDL2 (Homebrew / system install via pkg-config)
 # Can be overridden on the command line: make SDL2_CFLAGS=... SDL2_LIBS=...
-SDL2_CFLAGS ?= $(shell pkg-config --cflags sdl2 SDL2_ttf 2>/dev/null || pkg-config --cflags sdl2)
-SDL2_LIBS   ?= $(shell pkg-config --libs sdl2 SDL2_ttf 2>/dev/null || pkg-config --libs sdl2)
+SDL2_CFLAGS ?= $(shell pkg-config --cflags sdl2 2>/dev/null)
+SDL2_LIBS   ?= $(shell pkg-config --libs sdl2 2>/dev/null)
 ifeq ($(strip $(SDL2_LIBS)),)
     # Fallback when pkg-config is unavailable or finds nothing
     ifeq ($(UNAME_S),Darwin)

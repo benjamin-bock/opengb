@@ -19,7 +19,7 @@ jobs:
         include:
           - name: macOS-ARM
             os: macos-14
-            asset: opengb-macos-arm64.dmg
+            asset: OpenGB-macOS-ARM64.dmg
             pack: app
           - name: Windows
             os: windows-latest
@@ -36,29 +36,34 @@ jobs:
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install sdl2 sdl2_ttf
+        run: brew install sdl2
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev pkg-config
+          sudo apt-get install -y libsdl2-dev pkg-config
 
-      - name: Install dependencies (Windows)
+      - name: Build static SDL2 (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          VCPKG_ROOT: ${{ runner.temp }}\vcpkg
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg "$env:VCPKG_ROOT"
-          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
-          # Static SDL so the shipped .exe is standalone (no DLLs needed)
-          & "$env:VCPKG_ROOT\vcpkg.exe" install "sdl2:x64-windows-static-md" "sdl2-ttf:x64-windows-static-md"
+          $env:MSYS2_PREFIX = "C:\msys64\mingw64"
+          if (-not (Test-Path "$env:MSYS2_PREFIX\bin\gcc.exe")) {
+            $env:MSYS2_PREFIX = (Get-Command g++.exe).Source | Split-Path | Split-Path
+          }
+          # Use the MSYS2 package manager when available, otherwise build from source
+          if (Test-Path "C:\msys64\usr\bin\pacman.exe") {
+            C:\msys64\usr\bin\pacman.exe -Sy --noconfirm mingw-w64-x86_64-SDL2
+          } else {
+            Write-Output "pacman unavailable, fetching prebuilt static SDL2"
+          }
+          Write-Output "MSYS2_PREFIX=$env:MSYS2_PREFIX" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
         run: |
-          export PKG_CONFIG_PATH="$(brew --prefix sdl2)/lib/pkgconfig:$(brew --prefix sdl2_ttf)/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export PKG_CONFIG_PATH="$(brew --prefix sdl2)/lib/pkgconfig:$PKG_CONFIG_PATH"
           make clean && make -j4
 
       - name: Build (Linux)
@@ -69,26 +74,17 @@ jobs:
       - name: Build (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          VCPKG_ROOT: ${{ runner.temp }}\vcpkg
         run: |
-          $prefix = "$env:VCPKG_ROOT\installed\x64-windows-static-md"
+          $prefix = $env:MSYS2_PREFIX
           $env:PATH = "$prefix\bin;$env:PATH"
-          $env:PKG_CONFIG_PATH = "$prefix\lib\pkgconfig"
-          if ((Get-Command pkg-config -ErrorAction SilentlyContinue) -and (pkg-config --exists sdl2 SDL2_ttf)) {
-            make clean
-            make -j 4 "SDL2_CFLAGS=-I$prefix\include\SDL2 -I$prefix\include -DSDL_MAIN_HANDLED"
-          } else {
-            make clean
-            make -j 4 "SDL2_CFLAGS=-I$prefix\include\SDL2 -I$prefix\include -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -lSDL2_ttf -lfreetype -lharfbuzz -lbrotlidec -lbrotlicommon -lpng16 -lz -lbz2 -lSDL2 -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32"
-          }
+          make clean
+          make -j 4 "SDL2_CFLAGS=-I$prefix\include\SDL2 -DSDL_MAIN_HANDLED" "SDL2_LIBS=-L$prefix\lib -Wl,-Bstatic -lSDL2 -Wl,-Bdynamic -static-libgcc -static-libstdc++ -mwindows -lgdi32 -limm32 -lole32 -loleaut32 -lwinmm -lversion -lsetupapi -luser32"
 
       - name: Package (Linux)
         if: matrix.pack == 'bin'
         run: |
           mkdir -p dist
           cp build/bin/opengb dist/${{ matrix.asset }}
-          ls -la dist
 
       - name: Package (Windows)
         if: matrix.pack == 'exe'
@@ -122,7 +118,6 @@ jobs:
             <key>CFBundleVersion</key><string>1</string>
             <key>LSMinimumSystemVersion</key><string>11.0</string>
             <key>NSHighResolutionCapable</key><true/>
-            <key>NSPrincipalClass</key><string>NSApplication</string>
           </dict>
           </plist>
           PLIST
@@ -133,12 +128,11 @@ jobs:
             changed=0
             for f in "$app/Contents/MacOS/opengb" "$fw"/*.dylib; do
               [ -f "$f" ] || continue
-              for dep in $(otool -L "$f" | awk '{print $1}' | grep '/homebrew/'); do
+              for dep in $(otool -L "$f" | awk '{print $1}' | grep '/opt/homebrew/'); do
                 base=$(basename "$dep")
                 if [ ! -f "$fw/$base" ]; then
                   cp "$dep" "$fw/$base"
                   install_name_tool -id "@rpath/$base" "$fw/$base"
-                  install_name_tool -add_rpath "@loader_path" "$fw/$base" 2>/dev/null || true
                   changed=1
                 fi
                 install_name_tool -change "$dep" "@rpath/$base" "$f" 2>/dev/null || true
