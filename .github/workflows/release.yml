@@ -36,6 +36,9 @@ jobs:
             ext: ''
             pack: tar
 
+    env:
+      VCPKG_ROOT: ${{ runner.temp }}\vcpkg
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,8 +56,6 @@ jobs:
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          VCPKG_ROOT: ${{ runner.temp }}\vcpkg
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg "$env:VCPKG_ROOT"
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
@@ -74,15 +75,16 @@ jobs:
       - name: Build (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          VCPKG_ROOT: ${{ runner.temp }}\vcpkg
         run: |
           $prefix = "$env:VCPKG_ROOT\installed\x64-windows"
           $env:PATH = "$prefix\bin;$env:PATH"
           $sdl2Cflags = "-I$prefix\include\SDL2 -I$prefix\include -DSDL_MAIN_HANDLED"
-          $sdl2Libs = "-L$prefix\lib -lSDL2 -lSDL2_ttf"
+          $sdl2Libs = "-L$prefix\lib -static-libgcc -static-libstdc++ -lSDL2 -lSDL2_ttf"
           make clean
           make -j 4 "SDL2_CFLAGS=$sdl2Cflags" "SDL2_LIBS=$sdl2Libs"
+          # Fail early if the exe still depends on missing runtime DLLs
+          $mingwBin = (Get-Command g++).Source | Split-Path
+          & "$mingwBin\objdump.exe" -p build/bin/opengb.exe | Select-String "DLL Name"
 
       - name: Package (tar)
         if: matrix.pack == 'tar'
@@ -99,8 +101,29 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item "${{ matrix.bindir }}/opengb${{ matrix.ext }}" dist/
-          $sdlDlls = Get-ChildItem "$env:VCPKG_ROOT\installed\x64-windows\bin\*.dll" -ErrorAction SilentlyContinue
-          if ($sdlDlls) { Copy-Item $sdlDlls dist/ }
+          # Bundle every runtime DLL the exe and SDL depend on
+          $mingwBin = (Get-Command g++).Source | Split-Path
+          $needed = & "$mingwBin\objdump.exe" -p "${{ matrix.bindir }}/opengb.exe" | Select-String 'DLL Name: (.+)$' | ForEach-Object { $_.Matches[0].Groups[1].Value }
+          $searchDirs = @("$env:VCPKG_ROOT\installed\x64-windows\bin", $mingwBin)
+          foreach ($dll in $needed) {
+            if ($dll -in @('kernel32.dll','user32.dll','gdi32.dll','winmm.dll','ole32.dll','oleaut32.dll','imm32.dll','advapi32.dll','shell32.dll','version.dll','setupapi.dll','ws2_32.dll','dbghelp.dll','bcrypt.dll','ntdll.dll','comctl32.dll','shlwapi.dll','dinput8.dll','xinput1_4.dll','hid.dll','powrprof.dll','secur32.dll')) { continue }
+            foreach ($dir in $searchDirs) {
+              $src = Join-Path $dir $dll
+              if (Test-Path $src) { Copy-Item $src dist/; break }
+            }
+          }
+          # Resolve second-level dependencies of the bundled DLLs
+          $bundled = Get-ChildItem dist/*.dll
+          foreach ($b in $bundled) {
+            $depNames = & "$mingwBin\objdump.exe" -p $b.FullName | Select-String 'DLL Name: (.+)$' | ForEach-Object { $_.Matches[0].Groups[1].Value }
+            foreach ($dll in $depNames) {
+              if ((Test-Path "dist/$dll") -or ($dll -in @('kernel32.dll','user32.dll','gdi32.dll','winmm.dll','ole32.dll','oleaut32.dll','imm32.dll','advapi32.dll','shell32.dll','version.dll','setupapi.dll','ws2_32.dll','dbghelp.dll','bcrypt.dll','ntdll.dll','comctl32.dll','shlwapi.dll','dinput8.dll','xinput1_4.dll','hid.dll','powrprof.dll','secur32.dll'))) { continue }
+              foreach ($dir in $searchDirs) {
+                $src = Join-Path $dir $dll
+                if (Test-Path $src) { Copy-Item $src dist/; break }
+              }
+            }
+          }
           Copy-Item README.md dist/ -ErrorAction SilentlyContinue
           Copy-Item LICENSE dist/ -ErrorAction SilentlyContinue
           Compress-Archive -Path dist/* -DestinationPath dist/${{ matrix.artifact }}.zip -Force
