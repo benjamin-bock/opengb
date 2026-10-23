@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <string>
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
@@ -29,10 +30,17 @@ int main(int argc, char* argv[]) {
 
     std::string romPath;
     float initialVolume = 0.8f;
+    bool debugMode = false;
 
-    if (argc >= 2) {
-        romPath = argv[1];
-    } else {
+    for (int i = 1; i < argc; i++) {
+        if (std::string(argv[i]) == "--debug") {
+            debugMode = true;
+        } else if (romPath.empty()) {
+            romPath = argv[i];
+        }
+    }
+
+    if (romPath.empty()) {
         auto cfg = runLauncher();
         if (!cfg) {
             return 0;
@@ -121,6 +129,13 @@ int main(int argc, char* argv[]) {
     std::cout << "Loaded ROM: " << cart.getTitle() << std::endl;
     std::cout << "Starting the emulator..." << std::endl;
 
+    std::ofstream debugLog;
+    if (debugMode) {
+        debugLog.open("opengb-debug.log");
+        std::cout << "[debug] logging to opengb-debug.log" << std::endl;
+    }
+    long debugFrame = 0;
+
     bool running = true;
     while (running) {
         uint8_t cycles = cpu.step();
@@ -130,6 +145,25 @@ int main(int argc, char* argv[]) {
 
         if (bus.getPPU().isFrameReady()) {
             bus.getPPU().clearFrameReady();
+
+            if (debugMode && debugFrame % 60 == 0) {
+                auto& dbgPPU = bus.getPPU();
+                debugLog << "frame=" << debugFrame
+                         << " PC=" << std::hex << cpu.getPC()
+                         << " halted=" << cpu.isHaltedNow()
+                         << " IME=" << cpu.interruptsEnabled()
+                         << " LCDC=" << (int)dbgPPU.getLCDC()
+                         << " LY=" << std::dec << (int)dbgPPU.getLY()
+                         << " SCX=" << (int)dbgPPU.getSCX()
+                         << " SCY=" << (int)dbgPPU.getSCY()
+                         << " WX=" << (int)dbgPPU.getWX()
+                         << " WY=" << (int)dbgPPU.getWY()
+                         << " BGP=" << std::hex << (int)dbgPPU.getBGP()
+                         << " IF=" << (int)bus.read(0xFF0F)
+                         << " IE=" << (int)bus.read(0xFFFF)
+                         << std::dec << std::endl;
+            }
+            debugFrame++;
 
             // SDL Render (60 times per second)
             SDL_UpdateTexture(texture, nullptr, bus.getPPU().getFramebuffer(), 160 * sizeof(uint32_t));
