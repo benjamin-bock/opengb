@@ -12,6 +12,13 @@ class CPU {
         ~CPU() = default;
 
         uint8_t step();
+
+        // Debug: expose the program counter for diagnostics
+        uint16_t getPC() const { return this->PC; }
+
+        bool isHaltedNow() const { return this->isHalted; }
+
+        bool interruptsEnabled() const { return this->IME; }
         
     private:
         Bus& bus;
