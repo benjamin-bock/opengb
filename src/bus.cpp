@@ -1,7 +1,7 @@
 #include "../include/bus.hpp"
 #include <cstdint>
 
-Bus::Bus(Cartridge& cart) : cart(cart), joypad(*this), timer(*this), ppu(*this) {
+Bus::Bus(Cartridge& cart) : cart(cart), joypad(*this), serial(*this), timer(*this), ppu(*this) {
     this->vram.fill(0x00);
     this->wram0.fill(0x00);
     this->wram1.fill(0x00);
@@ -27,7 +27,8 @@ bool Bus::isAddressValid(uint16_t addr) const {
     // - $FF80-$FFFE (HRAM)
     // - $FFFF (Interrupt enable register)
 
-    return (addr <= 0xDFFF || 
+    return (addr <= 0xDFFF ||
+           (addr >= 0xE000 && addr <= 0xFDFF) || // Echo RAM
            (addr >= 0xFE00 && addr <= 0xFE9F) ||
            (addr >= 0xFF00));
 };
@@ -145,6 +146,7 @@ void Bus::write(uint16_t addr, uint8_t data) {
 
 void Bus::step(uint8_t cycles) {
     this->timer.step(cycles);
+    this->serial.step(cycles);
     this->ppu.step(cycles);
     this->apu.step(cycles);
 }
