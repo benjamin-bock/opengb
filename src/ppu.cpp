@@ -21,7 +21,8 @@ static constexpr uint16_t OAM_MEMORY_ADDRESS = 0xFE00;
 
 PPU::PPU(Bus& bus) : bus(bus) {
     cycleCounter = 0x0000;
-    
+    frameReady = false;
+
     // LCDC register
     LCDC = 0x00;
 
@@ -57,6 +58,7 @@ void PPU::step(uint8_t cycles) {
         this->cycleCounter = 0;
         this->scanlineRendered = false;
         this->setMode(0);
+        this->cmpLY();
         return;
     }
     // check end of scanline
@@ -154,6 +156,8 @@ void PPU::renderScanline() {
 void PPU::renderBackground() {
     uint16_t offsetTM = this->getBgTileMap() ? 0x0400 : 0x0000;
     bool isUnsignedMode = this->getAddrMode();
+    // LCDC bit 0: on DMG it disables both BG and window (blank, color 0)
+    bool bgEnabled = (this->LCDC & 0x01) != 0;
 
     uint8_t bgY = this->LY + this->SCY; // mod 256 is automatic on uint8_t
     uint16_t tileRow = bgY / 8;
@@ -161,33 +165,37 @@ void PPU::renderBackground() {
 
     // loop on the scanline
     for (uint8_t x = 0; x < 160; ++x) {
-        // get tileID
-        uint8_t bgX = (x + this->SCX); // mod 256 is automatic on uint8_t
-        uint8_t tileCol = bgX / 8;
+        uint8_t colorID = 0;
 
-        uint16_t addrTM = (0x9800 + offsetTM) + (tileRow << 5) + tileCol;
-        uint8_t tileID = this->bus.read(addrTM);
+        if (bgEnabled) {
+            // get tileID
+            uint8_t bgX = (x + this->SCX); // mod 256 is automatic on uint8_t
+            uint8_t tileCol = bgX / 8;
 
-        uint16_t tileAddr;
-        // find tile in VRAM
-        if (isUnsignedMode) {
-            // unsigned mode, base pointer at $8000
-            tileAddr = 0x8000 + (tileID << 4) + lineOffset;
+            uint16_t addrTM = (0x9800 + offsetTM) + (tileRow << 5) + tileCol;
+            uint8_t tileID = this->bus.read(addrTM);
+
+            uint16_t tileAddr;
+            // find tile in VRAM
+            if (isUnsignedMode) {
+                // unsigned mode, base pointer at $8000
+                tileAddr = 0x8000 + (tileID << 4) + lineOffset;
+            }
+            else {
+                // signed mode, base pointer at $9000
+                tileAddr = 0x9000 + (static_cast<int8_t>(tileID) * 16) + lineOffset;
+            }
+            // read the tile data
+            uint8_t byte0 = this->bus.read(tileAddr);
+            uint8_t byte1 = this->bus.read(tileAddr + 1);
+
+            uint8_t pixelX = bgX % 8;
+            uint8_t bitPos = 7 - pixelX;
+
+            bool loBit = (byte0 >> bitPos) & 1;
+            bool hiBit = (byte1 >> bitPos) & 1;
+            colorID = (hiBit << 1) | loBit;
         }
-        else {
-            // signed mode, base pointer at $9000
-            tileAddr = 0x9000 + (static_cast<int8_t>(tileID) * 16) + lineOffset;
-        }
-        // read the tile data
-        uint8_t byte0 = this->bus.read(tileAddr);
-        uint8_t byte1 = this->bus.read(tileAddr + 1);
-
-        uint8_t pixelX = bgX % 8;
-        uint8_t bitPos = 7 - pixelX;
-
-        bool loBit = (byte0 >> bitPos) & 1;
-        bool hiBit = (byte1 >> bitPos) & 1;
-        uint8_t colorID = (hiBit << 1) | loBit;
 
         uint8_t shade = (this->BGP >> (colorID * 2)) & 0x03;
 
@@ -262,8 +270,21 @@ void PPU::renderSprites() {
     if (!this->isSpriteEnabled()) {
         return;
     }
+    // On DMG, at most 10 sprites per scanline are rendered; the ones with the
+    // lowest OAM indices are selected.
+    uint8_t selected[10];
+    uint8_t count = 0;
+    uint8_t spriteHeightAll = this->getSpriteSize() ? 16 : 8;
+    for (int i = 0; i < 40 && count < 10; ++i) {
+        uint8_t spriteY = this->bus.read(OAM_MEMORY_ADDRESS + (i * 4));
+        int posY = static_cast<int>(spriteY) - 16;
+        if (this->LY >= posY && this->LY < posY + spriteHeightAll) {
+            selected[count++] = static_cast<uint8_t>(i);
+        }
+    }
     // iterate in decreasing order to get higher priority sprites (low index)
-    for (int i = 39; i >= 0; --i) {
+    for (int k = count - 1; k >= 0; --k) {
+        int i = selected[k];
         uint16_t spriteAddr = OAM_MEMORY_ADDRESS + (i * 4);
 
         uint8_t spriteY = this->bus.read(spriteAddr);
@@ -335,7 +356,8 @@ void PPU::renderSprites() {
 }
 
 bool PPU::isWindowEnabled() {
-    return (this->LCDC & 0x20) && this->windowYTriggered && (this->WX <= 166) && (this->WY <= 143);
+    // on DMG, the window is also gated by the BG enable bit (LCDC bit 0)
+    return (this->LCDC & 0x20) && (this->LCDC & 0x01) && this->windowYTriggered && (this->WX <= 166) && (this->WY <= 143);
 }
 
 bool PPU::isSpriteEnabled() {
@@ -408,7 +430,8 @@ uint8_t PPU::getLCDC() const {
 }
 
 uint8_t PPU::getSTAT() const {
-    return this->STAT;
+    // bit 7 is always set on DMG
+    return this->STAT | 0x80;
 }
 
 uint8_t PPU::getLY() const {
@@ -453,7 +476,27 @@ const uint32_t* PPU::getFramebuffer() const {
 
 // Setter functions
 void PPU::setLCDC(uint8_t data) {
+    bool wasEnabled = this->isLCDEnabled();
     this->LCDC = data;
+    bool nowEnabled = this->isLCDEnabled();
+    if (!wasEnabled && nowEnabled) {
+        // LCD turned on: start a fresh frame at LY 0
+        this->cycleCounter = 0;
+        this->LY = 0;
+        this->scanlineRendered = false;
+        this->windowLineCounter = 0;
+        this->windowYTriggered = false;
+        this->cmpLY();
+    } else if (wasEnabled && !nowEnabled) {
+        // LCD turned off: LY reads 0 and the PPU goes to mode 0
+        this->LY = 0;
+        this->cycleCounter = 0;
+        this->scanlineRendered = false;
+        this->windowLineCounter = 0;
+        this->windowYTriggered = false;
+        this->setMode(0);
+        this->cmpLY();
+    }
 }
 
 void PPU::setSTAT(uint8_t data) {
@@ -491,12 +534,13 @@ void PPU::setWX(uint8_t data) {
 }
 
 void PPU::setLY(uint8_t data) {
-    (void)data;
-    this->LY = 0; // writing to LY resets the register
+    (void)data; // LY is read-only on DMG, writes are ignored
 }
 
 void PPU::setLYC(uint8_t data) {
     this->LYC = data;
+    // the LY==LYC comparison is re-evaluated on LYC writes (may raise the STAT interrupt)
+    this->cmpLY();
 }
 
 

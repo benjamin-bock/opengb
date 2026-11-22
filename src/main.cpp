@@ -145,6 +145,7 @@ int main(int argc, char* argv[]) {
 
         if (bus.getPPU().isFrameReady()) {
             bus.getPPU().clearFrameReady();
+            const uint64_t frameStart = SDL_GetPerformanceCounter();
 
             if (debugMode && debugFrame % 60 == 0) {
                 auto& dbgPPU = bus.getPPU();
@@ -181,6 +182,14 @@ int main(int argc, char* argv[]) {
             if (audioDevice != 0) {
                 while (SDL_GetQueuedAudioSize(audioDevice) > 44100 * 2 * sizeof(float) * 0.04) {
                     SDL_Delay(1);
+                }
+            } else {
+                // no audio device: pace frames with a timer instead
+                const double targetMs = 1000.0 / 59.7275;
+                const double elapsedMs =
+                    (SDL_GetPerformanceCounter() - frameStart) * 1000.0 / SDL_GetPerformanceFrequency();
+                if (elapsedMs < targetMs) {
+                    SDL_Delay(static_cast<uint32_t>(targetMs - elapsedMs));
                 }
             }
 
