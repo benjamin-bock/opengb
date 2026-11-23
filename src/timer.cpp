@@ -4,20 +4,20 @@
 
 #include "../include/bus.hpp"
 
-static constexpr std::array<uint16_t, 4> TIMA_THRESHOLD = {
-    1024, 16, 64, 256
-};
+// Bit of the internal 16-bit divider selected by each TAC clock setting.
+// A falling edge on that bit increments TIMA.
+static constexpr std::array<uint8_t, 4> TIMA_BIT = { 9, 3, 5, 7 };
 
-static constexpr uint16_t DIV_THRESHOLD = 256;
+// T-cycles the TIMA reload is delayed after an overflow (1 M-cycle)
+static constexpr uint8_t OVERFLOW_DELAY = 4;
 
 Timer::Timer(Bus& bus) : bus(bus) {
-
-    this->divCycleCounter = 0x00;
-    this->timaCycleCounter = 0x00;
-    this->DIV = 0x00;
+    this->divider = 0x0000;
     this->TIMA = 0x00;
     this->TMA = 0x00;
     this->TAC = 0x00;
+    this->overflowDelay = 0;
+    this->reloadPending = false;
 }
 
 uint8_t Timer::getClockSelect() {
@@ -28,34 +28,44 @@ bool Timer::getClockEnable() {
     return static_cast<bool>((this->TAC & 0x04) >> 2);
 }
 
-void Timer::step(uint8_t cycles) {
-
-    // Increment DIV at a 16384 Hz rate = 64 M-cycles = 256 T-cycles
-    this->divCycleCounter += cycles;
-    while (this->divCycleCounter >= DIV_THRESHOLD) {
-        this->DIV++;
-        this->divCycleCounter -= DIV_THRESHOLD;
+void Timer::incrementTIMA() {
+    if (this->TIMA == 0xFF) {
+        // Overflow: TIMA stays 0xFF for OVERFLOW_DELAY cycles, then is
+        // reloaded with TMA and the timer interrupt is requested.
+        this->overflowDelay = OVERFLOW_DELAY;
+        this->reloadPending = true;
+    } else {
+        this->TIMA++;
     }
+}
 
-    // Increment TIMA at frequency controlled by TAC
-    if (this->getClockEnable()) {
-        this->timaCycleCounter += cycles;
-        uint16_t threshold = TIMA_THRESHOLD[this->getClockSelect()];
-
-        while (this->timaCycleCounter >= threshold) {
-            this->timaCycleCounter -= threshold;
-
-            if (this->TIMA == 0xFF) {
-                // Overflow occured; reset to modulo value TMA
-                this->TIMA = this->TMA;
-
-                // Trigger an interrupt
-                uint8_t currentIF = this->bus.read(0xFF0F); // get Interrupt Flag
+void Timer::step(uint8_t cycles) {
+    for (uint8_t i = 0; i < cycles; i++) {
+        // count down the post-overflow delay
+        if (this->overflowDelay > 0) {
+            this->overflowDelay--;
+            if (this->overflowDelay == 0) {
+                if (this->reloadPending) {
+                    this->TIMA = this->TMA;
+                    this->reloadPending = false;
+                }
+                // the timer interrupt is requested even if the reload was cancelled
+                uint8_t currentIF = this->bus.read(0xFF0F);
                 this->bus.write(0xFF0F, currentIF | 0x04); // set bit 2 of IF (0xFF0F)
             }
-            else {
-                // Normal case: increment TIMA
-                this->TIMA++;
+        }
+
+        // clock the internal 16-bit divider (DIV is its upper byte)
+        uint16_t before = this->divider;
+        this->divider++;
+
+        // TIMA increments on the falling edge of the selected divider bit
+        if (this->getClockEnable()) {
+            uint8_t bit = TIMA_BIT[this->getClockSelect()];
+            bool wasSet = (before >> bit) & 1;
+            bool isSet = (this->divider >> bit) & 1;
+            if (wasSet && !isSet) {
+                this->incrementTIMA();
             }
         }
     }
@@ -64,7 +74,7 @@ void Timer::step(uint8_t cycles) {
 
 // getter functions
 uint8_t Timer::getDIV() const {
-    return this->DIV;
+    return static_cast<uint8_t>(this->divider >> 8);
 }
 
 uint8_t Timer::getTIMA() const {
@@ -79,14 +89,18 @@ uint8_t Timer::getTAC() const {
     return this->TAC;
 }
 
-// getter functions
+// setter functions
 void Timer::setDIV(uint8_t data) {
     (void)data;
-    this->DIV = 0x00; // Writing to DIV resets the counter to $00
+    // writing to DIV resets the whole internal divider (this can also
+    // clock TIMA if the selected bit falls)
+    this->divider = 0x0000;
 }
 
 void Timer::setTIMA(uint8_t data) {
     this->TIMA = data;
+    // a write during the overflow delay cancels the reload (the interrupt still fires)
+    this->reloadPending = false;
 }
 
 void Timer::setTMA(uint8_t data) {

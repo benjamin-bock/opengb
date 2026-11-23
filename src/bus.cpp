@@ -177,9 +177,6 @@ uint8_t Bus::readIO(uint16_t addr) const {
     else if (addr >= 0xFF10 && addr <= 0xFF3F) {
         return this->apu.read(addr);
     }
-    else if (addr == 0xFF46) {
-        return this->dmaRegister;
-    }
     else if (addr >= 0xFF40 && addr <= 0xFF4B) {
         switch (addr) {
             case 0xFF40:
@@ -201,7 +198,11 @@ uint8_t Bus::readIO(uint16_t addr) const {
             case 0xFF48:
                 return this->ppu.getOBP0();
             case 0xFF49:
-                return this->ppu.getOBP1();           
+                return this->ppu.getOBP1();
+            case 0xFF4A:
+                return this->ppu.getWY();
+            case 0xFF4B:
+                return this->ppu.getWX();
         }
         return 0x00;
     }
